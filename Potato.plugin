@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<Plugin> 
+	<Information>
+		<Name>Potato</Name>
+		<Author>Souru</Author>
+		<Version>1.1.1</Version>
+		<Description>...</Description>
+		<Image>Potato/potato_icon4.tga</Image>
+	</Information>
+	<Package>Potato.main</Package>
+	<Configuration Apartment="Potato" />
+</Plugin>
