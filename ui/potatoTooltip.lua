@@ -1,8 +1,8 @@
 
 -- PotatoTooltip
--- 
+--
 -- the tooltip ui element
--- 
+--
 -- - name
 -- - entity
 -- - cc duration
@@ -23,23 +23,27 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     -- self
     self:SetMouseVisible(true)
 
+    -- thin border around the whole card
+    self.borderFrame = Turbine.UI.Control()
+    self.borderFrame:SetParent(self)
+    self.borderFrame:SetBackColor(Turbine.UI.Color(0.3, 0.3, 0.3))
+    self.borderFrame:SetMouseVisible(false)
+
+    -- colored background (inset 1px inside borderFrame)
     self.frame = Turbine.UI.Control()
     self.frame:SetParent(self)
 
     -- entity control
     self.entityControl = Turbine.UI.Lotro.EntityControl()
     self.entityControl:SetParent(self)
-    self.entityControl:SetPosition(1, 1)
     self.entityControl:SetEntity(entity)
 
     -- name label
     self.nameLabel = Turbine.UI.Label()
     self.nameLabel:SetParent(self)
-    -- self.nameLabel:SetMultiline(false)
     self.nameLabel:SetTextAlignment(Turbine.UI.ContentAlignment.TopLeft)
     self.nameLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.nameLabel:SetFont(Turbine.UI.Lotro.Font.Verdana18)
-    self.nameLabel:SetPosition(_G.Settings.tooltip_label_spacing, 1)
     self.nameLabel:SetMouseVisible(false)
     self.nameLabel:SetText(name)
 
@@ -48,24 +52,59 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.closeButton:SetParent(self)
     self.closeButton:SetBackColor(Turbine.UI.Color.Red)
     self.closeButton:SetSize(20, 20)
-    self.closeButton:SetTop(1)
+    self.closeButton:SetTop(2)
     self.closeButton.MouseClick = function (sender, args)
         self.parentWindow:RemoveTooltip(self)
     end
+    self.closeButton.MouseEnter = function(sender, args)
+        self.closeButton:SetBackColor(Turbine.UI.Color(0.75, 0.0, 0.0))
+    end
+    self.closeButton.MouseLeave = function(sender, args)
+        self.closeButton:SetBackColor(Turbine.UI.Color.Red)
+    end
 
-    self.durationIcon = Turbine.UI.Control()
-    self.durationIcon:SetParent(self)
-    self.durationIcon:SetSize(32, 32)
-    self.durationIcon:SetLeft(_G.Settings.tooltip_label_spacing)
-    self.durationIcon:SetMouseVisible(false)
-    self.durationIcon:SetVisible(false)
+    -- "X" label on the close button
+    self.closeButtonLabel = Turbine.UI.Label()
+    self.closeButtonLabel:SetParent(self.closeButton)
+    self.closeButtonLabel:SetSize(20, 20)
+    self.closeButtonLabel:SetPosition(0, 0)
+    self.closeButtonLabel:SetText("X")
+    self.closeButtonLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.closeButtonLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.closeButtonLabel:SetForeColor(Turbine.UI.Color.White)
+    self.closeButtonLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.closeButtonLabel:SetMouseVisible(false)
 
+    -- duration bar background track
+    self.durationBarTrack = Turbine.UI.Control()
+    self.durationBarTrack:SetParent(self)
+    self.durationBarTrack:SetBackColor(Turbine.UI.Color(0.15, 0.1, 0.05))
+    self.durationBarTrack:SetMouseVisible(false)
+    self.durationBarTrack:SetVisible(false)
+
+    -- duration bar fill (declared after track so it renders on top)
     self.durationBar = Turbine.UI.Control()
     self.durationBar:SetParent(self)
-    self.durationBar:SetHeight(32)
     self.durationBar:SetBackColor(Turbine.UI.Color.Orange)
     self.durationBar:SetMouseVisible(false)
     self.durationBar:SetVisible(false)
+
+    -- duration icon
+    self.durationIcon = Turbine.UI.Control()
+    self.durationIcon:SetParent(self)
+    self.durationIcon:SetSize(32, 32)
+    self.durationIcon:SetMouseVisible(false)
+    self.durationIcon:SetVisible(false)
+
+    -- countdown text label
+    self.durationLabel = Turbine.UI.Label()
+    self.durationLabel:SetParent(self)
+    self.durationLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.durationLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.durationLabel:SetForeColor(Turbine.UI.Color.White)
+    self.durationLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.durationLabel:SetMouseVisible(false)
+    self.durationLabel:SetVisible(false)
 
     self:ApplySettings()
 
@@ -87,7 +126,7 @@ function PotatoTooltip:TargetChanged(targetName)
         if self.isDead then
             self.frame:SetBackColor(_G.Settings.tooltip_defeated_color)
         else
-            
+
             if self.entityType == 1 then
                 self.frame:SetBackColor(_G.Settings.tooltip_color_player)
             elseif self.entityType == 2 then
@@ -102,19 +141,22 @@ function PotatoTooltip:TargetChanged(targetName)
 end
 
 function PotatoTooltip:Update()
-    
+
     local timeLeft = self.endTime - Turbine.Engine.GetGameTime()
 
     -- end the duration display
     if timeLeft <= 0 then
         self:SetWantsUpdates(false)
         self.durationIcon:SetVisible(false)
+        self.durationBarTrack:SetVisible(false)
         self.durationBar:SetVisible(false)
+        self.durationLabel:SetVisible(false)
         return
     end
 
     local currentBarWidth = timeLeft / self.duration * self.durationBarWidth
     self.durationBar:SetWidth(currentBarWidth)
+    self.durationLabel:SetText(tostring(math.ceil(timeLeft)) .. "s")
 
 end
 
@@ -133,7 +175,10 @@ function PotatoTooltip:DisplayDuration(icon, duration, targetName)
         self:SetWantsUpdates(true)
 
         self.durationIcon:SetVisible(true)
+        self.durationBarTrack:SetVisible(true)
         self.durationBar:SetVisible(true)
+        self.durationLabel:SetVisible(true)
+        self.durationLabel:SetText(tostring(math.ceil(self.duration)) .. "s")
     end
 
 end
@@ -151,46 +196,70 @@ end
 
 function PotatoTooltip:ApplySettings()
 
-    -- size
+    -- outer card size (includes spacing gap)
     local selfHeight = _G.Settings.tooltip_height + _G.Settings.tooltip_spacing
     local selfWidth = _G.Settings.width
-    if _G.Settings.horizontal then    
-        selfHeight = _G.Settings.tooltip_height 
+    if _G.Settings.horizontal then
+        selfHeight = _G.Settings.tooltip_height
         selfWidth = _G.Settings.width + _G.Settings.tooltip_spacing
     end
-    
     self:SetSize(selfWidth, selfHeight)
-    self.frame:SetSize(_G.Settings.width , _G.Settings.tooltip_height)
-    local innerHeight = _G.Settings.tooltip_height -2
-    self.entityControl:SetSize(_G.Settings.width -2 , innerHeight)
-    local lableWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - 21
-    self.nameLabel:SetSize(lableWidth, 38)
 
+    -- border frame: full tooltip area (no spacing)
+    self.borderFrame:SetPosition(0, 0)
+    self.borderFrame:SetSize(_G.Settings.width, _G.Settings.tooltip_height)
 
+    -- colored background: inset 1px inside border
+    self.frame:SetPosition(1, 1)
+    self.frame:SetSize(_G.Settings.width - 2, _G.Settings.tooltip_height - 2)
 
-    -- positioning
-    local closeButtonLeft = _G.Settings.width - 21
+    -- entity control: inset 2px total (1 border + 1 gap)
+    local innerHeight = _G.Settings.tooltip_height - 4
+    self.entityControl:SetPosition(2, 2)
+    self.entityControl:SetSize(_G.Settings.width - 4, innerHeight)
+
+    -- name label
+    local labelWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - 22
+    self.nameLabel:SetPosition(_G.Settings.tooltip_label_spacing, 2)
+    self.nameLabel:SetSize(labelWidth, 38)
+
+    -- close button: right-edge, inset to match border
+    local closeButtonLeft = _G.Settings.width - 22
     self.closeButton:SetLeft(closeButtonLeft)
 
-
+    -- duration area sizing
     self.durationHeight = 32
     if (innerHeight - 38) < 32 then
         self.durationHeight = innerHeight - 38
-    end 
+    end
 
     self.durationBarWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - self.durationHeight
-    self.durationBar:SetWidth(self.durationBarWidth)
-    self.durationBar:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
-
     local durationTop = (math.max((innerHeight - 38 - 32), 0) /2) + 38
 
+    -- duration icon
+    self.durationIcon:SetLeft(_G.Settings.tooltip_label_spacing)
     self.durationIcon:SetTop(durationTop)
+
+    -- duration bar track (full-width background)
+    self.durationBarTrack:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
+    self.durationBarTrack:SetTop(durationTop)
+    self.durationBarTrack:SetWidth(self.durationBarWidth)
+    self.durationBarTrack:SetHeight(self.durationHeight)
+
+    -- duration bar fill
+    self.durationBar:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
     self.durationBar:SetTop(durationTop)
+    self.durationBar:SetWidth(self.durationBarWidth)
     self.durationBar:SetHeight(self.durationHeight)
+
+    -- countdown label (overlaid on bar area)
+    self.durationLabel:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
+    self.durationLabel:SetTop(durationTop)
+    self.durationLabel:SetSize(self.durationBarWidth, self.durationHeight)
 
     -- color
     self.frame:SetBackColor(_G.Settings.tooltip_targeted_color)
-            
+
     if self.entityType == 1 then
         self.entityControl:SetBackColor(_G.Settings.tooltip_color_player)
     elseif self.entityType == 2 then

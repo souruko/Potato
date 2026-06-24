@@ -98,7 +98,7 @@ function ParseCombatChat(line)
 		local critType =
 			string.match(avoidAndCrit,"critical $") and 2 or
 			string.match(avoidAndCrit,"devastating $") and 3 or 1;
-		skillName = string.match(skillName,"^ with (.*)$") or L.DirectDamage; -- (as of v4.1.0)
+		skillName = string.match(skillName,"^ with (.*)$") or "Direct Damage"; -- (as of v4.1.0)
 		
 		local targetName,amount,dmgType,moralePower = string.match(targetNameAmountAndType,"^(.*) for ([%d,]*) (.*)damage to (.*)$");
 		-- damage was absorbed

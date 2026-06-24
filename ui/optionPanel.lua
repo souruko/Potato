@@ -4,7 +4,7 @@ OptionPanel = class ( Turbine.UI.Control )
 function OptionPanel:Constructor()
     Turbine.UI.Control.Constructor(self)
 
-    self:SetSize(600, 600)
+    self:SetSize(600, 650)
 
     local top = 0
 
@@ -167,14 +167,29 @@ function OptionPanel:Constructor()
     self.updateSizeButton:SetWidth(100)
     self.updateSizeButton:SetPosition(40, top)
     self.updateSizeButton.MouseClick = function (sender, args)
-        _G.Settings.width = tonumber(self.widthTextbox:GetText())
-        _G.Settings.tooltip_height = tonumber(self.heightTextbox:GetText())
-        _G.Settings.max_tooltip_count = tonumber(self.toolTipCountTextbox:GetText())
-        _G.Settings.tooltip_spacing = tonumber(self.spacingTextbox:GetText())
+        _G.Settings.width            = tonumber(self.widthTextbox:GetText())         or _G.Settings.width
+        _G.Settings.tooltip_height   = tonumber(self.heightTextbox:GetText())        or _G.Settings.tooltip_height
+        _G.Settings.max_tooltip_count = tonumber(self.toolTipCountTextbox:GetText()) or _G.Settings.max_tooltip_count
+        _G.Settings.tooltip_spacing  = tonumber(self.spacingTextbox:GetText())       or _G.Settings.tooltip_spacing
 
         Potato:ApplySettings()
         _G.SaveSettings()
+
+        -- reflect accepted values back so invalid input visually reverts
+        self.widthTextbox:SetText(_G.Settings.width)
+        self.heightTextbox:SetText(_G.Settings.tooltip_height)
+        self.toolTipCountTextbox:SetText(_G.Settings.max_tooltip_count)
+        self.spacingTextbox:SetText(_G.Settings.tooltip_spacing)
     end
+
+    self.updateSizeHint = Turbine.UI.Label()
+    self.updateSizeHint:SetParent(self)
+    self.updateSizeHint:SetPosition(145, top + 2)
+    self.updateSizeHint:SetSize(200, 20)
+    self.updateSizeHint:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.updateSizeHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.updateSizeHint:SetForeColor(Turbine.UI.Color(0.5, 0.5, 0.5))
+    self.updateSizeHint:SetText("(click to apply)")
 
     top = top + 35
 
@@ -197,7 +212,7 @@ function OptionPanel:Constructor()
         AddButtonWindow = GetKeybindingWindow()
         AddButtonWindow.KeyDown = function (s, a)
 
-            -- no double assingment
+            -- no double assignment
             if AddButtonWindow.assignedAlready == true then
                 return
             end
@@ -219,6 +234,7 @@ function OptionPanel:Constructor()
             _G.Settings.keybinding_add.ctrl = a.Control
             _G.Settings.keybinding_add.action = a.Action
             _G.SaveSettings()
+            self.addKeybindingLabel:SetText("Current: " .. FormatKeybinding(_G.Settings.keybinding_add))
             AddButtonWindow.assignedAlready = true
 
             AddButtonWindow:SetVisible(false)
@@ -226,6 +242,17 @@ function OptionPanel:Constructor()
 
         end
     end
+
+    top = top + 22
+
+    self.addKeybindingLabel = Turbine.UI.Label()
+    self.addKeybindingLabel:SetParent(self)
+    self.addKeybindingLabel:SetPosition(40, top)
+    self.addKeybindingLabel:SetSize(350, 18)
+    self.addKeybindingLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.addKeybindingLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.addKeybindingLabel:SetForeColor(Turbine.UI.Color(0.6, 0.75, 0.6))
+    self.addKeybindingLabel:SetText("Current: " .. FormatKeybinding(_G.Settings.keybinding_add))
 
     top = top + 25
 
@@ -240,7 +267,7 @@ function OptionPanel:Constructor()
         ClearButtonWindow = GetKeybindingWindow()
         ClearButtonWindow.KeyDown = function (s, a)
 
-            -- no double assingment
+            -- no double assignment
             if ClearButtonWindow.assignedAlready == true then
                 return
             end
@@ -262,6 +289,7 @@ function OptionPanel:Constructor()
             _G.Settings.keybinding_clear.ctrl = a.Control
             _G.Settings.keybinding_clear.action = a.Action
             _G.SaveSettings()
+            self.clearKeybindingLabel:SetText("Current: " .. FormatKeybinding(_G.Settings.keybinding_clear))
             ClearButtonWindow.assignedAlready = true
 
             ClearButtonWindow:SetVisible(false)
@@ -269,6 +297,17 @@ function OptionPanel:Constructor()
 
         end
     end
+
+    top = top + 22
+
+    self.clearKeybindingLabel = Turbine.UI.Label()
+    self.clearKeybindingLabel:SetParent(self)
+    self.clearKeybindingLabel:SetPosition(40, top)
+    self.clearKeybindingLabel:SetSize(350, 18)
+    self.clearKeybindingLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.clearKeybindingLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.clearKeybindingLabel:SetForeColor(Turbine.UI.Color(0.6, 0.75, 0.6))
+    self.clearKeybindingLabel:SetText("Current: " .. FormatKeybinding(_G.Settings.keybinding_clear))
 
     top = top + 30
 
@@ -357,7 +396,7 @@ function GetKeybindingWindow()
     local info = Turbine.UI.Lotro.GoldWindow()
     info:SetParent(window)
     info:SetSize(300, 100)
-    info:SetText("potato keybinding")
+    info:SetText("Potato keybinding")
     info:SetPosition(screenWidth/2 - 150, screenHeight/2 - 50)
     function info:Closing()
         window.assignedAlready = true
@@ -370,11 +409,20 @@ function GetKeybindingWindow()
     label:SetPosition(20, 40)
     label:SetSize(260, 50)
     label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    label:SetText("press the new keybinding or esc to cancle.")
+    label:SetText("press the new keybinding or esc to cancel.")
 
     info:SetVisible(true)
     window:SetVisible(true)
 
     return window
 
+end
+
+function FormatKeybinding(kb)
+    local parts = {}
+    if kb.shift then parts[#parts+1] = "Shift" end
+    if kb.alt   then parts[#parts+1] = "Alt"   end
+    if kb.ctrl  then parts[#parts+1] = "Ctrl"  end
+    parts[#parts+1] = tostring(kb.action)
+    return table.concat(parts, "+")
 end

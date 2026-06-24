@@ -33,6 +33,17 @@ function PotatoWindow:Constructor()
     self.moveAnchor:SetVisible(false)
     self.moveAnchor:SetZOrder(1000)
 
+    self.moveAnchorLabel = Turbine.UI.Label()
+    self.moveAnchorLabel:SetParent(self.moveAnchor)
+    self.moveAnchorLabel:SetSize(20, 20)
+    self.moveAnchorLabel:SetPosition(0, 0)
+    self.moveAnchorLabel:SetText("+")
+    self.moveAnchorLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.moveAnchorLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.moveAnchorLabel:SetForeColor(Turbine.UI.Color.White)
+    self.moveAnchorLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.moveAnchorLabel:SetMouseVisible(false)
+
     -- mouse interaction
     self.dragging = false
     self.dragStartX = 0
@@ -153,8 +164,7 @@ function PotatoWindow:AddTooltip()
 
     local localPlayer = Turbine.Gameplay.LocalPlayer:GetInstance()
     local target = localPlayer:GetTarget()
-    -- target entity is not working properly without a second call
-    local bugFixtarget = localPlayer:GetTarget()
+    local _ = localPlayer:GetTarget()  -- second GetTarget() call required; first call may return stale entity
 
     -- return if player has no target
     if target == nil then

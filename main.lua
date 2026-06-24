@@ -36,7 +36,6 @@ if _G.Settings == nil then
     _G.Settings.tooltip_label_spacing = 5
     _G.Settings.highlight_defeated = true
     _G.Settings.display_durations = true
-    _G.Settings.tooltip_spacing = 5
     _G.Settings.sort = 1 -- 0=noSort 1=byName
     _G.Settings.keybinding_add = {}
     _G.Settings.keybinding_add.shift = false
@@ -49,7 +48,6 @@ if _G.Settings == nil then
     _G.Settings.keybinding_clear.ctrl = true
     _G.Settings.keybinding_clear.action = 268435482
     _G.Settings.use_clear_keybinding = true
-    _G.Settings.only_clear_dead = false
     _G.Settings.only_clear_dead = false
 
     Turbine.Shell.WriteLine("potato: setup your keybinding in the plugin manager options!")
