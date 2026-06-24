@@ -142,11 +142,25 @@ end
 
 function PotatoTooltip:Update()
 
-    local timeLeft = self.endTime - Turbine.Engine.GetGameTime()
+    local now = Turbine.Engine.GetGameTime()
+
+    if self.isDead and self.defeatTime then
+        local delay = _G.Settings.defeat_auto_remove_delay
+        if delay > 0 and (now - self.defeatTime) >= delay then
+            self.parentWindow:RemoveTooltip(self)
+            return
+        end
+    end
+
+    if not self.endTime then return end
+    local timeLeft = self.endTime - now
 
     -- end the duration display
     if timeLeft <= 0 then
-        self:SetWantsUpdates(false)
+        self.endTime = nil
+        if not (self.isDead and self.defeatTime) then
+            self:SetWantsUpdates(false)
+        end
         self.durationIcon:SetVisible(false)
         self.durationBarTrack:SetVisible(false)
         self.durationBar:SetVisible(false)
@@ -157,6 +171,12 @@ function PotatoTooltip:Update()
     local currentBarWidth = timeLeft / self.duration * self.durationBarWidth
     self.durationBar:SetWidth(currentBarWidth)
     self.durationLabel:SetText(tostring(math.ceil(timeLeft)) .. "s")
+
+    if timeLeft <= _G.Settings.cc_warning_threshold then
+        self.durationBar:SetBackColor(Turbine.UI.Color.Red)
+    else
+        self.durationBar:SetBackColor(Turbine.UI.Color.Orange)
+    end
 
 end
 
@@ -190,6 +210,10 @@ function PotatoTooltip:DefeatTooltip(targetName)
         self.frame:SetBackColor(_G.Settings.tooltip_defeated_color)
         self.entityControl:SetBackColor(_G.Settings.tooltip_defeated_color)
         self.nameLabel:SetForeColor(_G.Settings.tooltip_defeated_text_color)
+        if _G.Settings.defeat_auto_remove_delay > 0 then
+            self.defeatTime = Turbine.Engine.GetGameTime()
+            self:SetWantsUpdates(true)
+        end
     end
 
 end
