@@ -1,0 +1,42 @@
+# Changelog
+
+## [1.1.1] — 2026-06-24
+
+### Added
+- Configurable background colors for player, NPC, and item tracker cards (RGB 0–255 inputs with "apply colors" button)
+- CC warning threshold setting — duration bar turns red when time remaining falls below the configured value (default 5 s)
+- Auto-remove defeated delay — tracker cards are removed automatically a configurable number of seconds after defeat (0 = disabled)
+- "Only clear defeated" option for the clear keybinding — limits the clear action to defeated trackers only
+
+### Changed
+- Keybinding capture now uses a full-screen overlay dialog instead of blocking in-place
+- Tracker layout settings (width, height, spacing, max count) and combat settings now require an explicit "apply" click rather than taking effect on each keystroke
+- Options panel reorganized into labeled sections: Position, Layout, Tooltip size, Keybindings, Combat tracking, Appearance
+
+## [1.1.0] — 2026-06-24
+
+### Added
+- Horizontal fill mode — trackers grow left-to-right instead of top-to-bottom
+- Reverse fill order option
+- CC duration timers: shrinking progress bar, skill icon, and countdown label overlaid on the tracker card
+- Support for Mariner Thrum of the Sea (25 s) and LM Sign of Power: Righteousness (15 s) in addition to existing CC skills
+- `_G.ShowAnchor()` helper exposed for drag-handle toggle from the options panel
+
+### Changed
+- `PotatoTooltip:Update()` now also handles the defeat auto-remove countdown so a single update loop covers both CC timers and defeat delays
+- Settings fall back from character scope to account scope on first load
+
+## [1.0.0] — 2026-06-24
+
+Initial release.
+
+### Features
+- Floating HUD window (`PotatoWindow`) with a scrollable list of pinned tracker cards
+- Per-target tracker cards (`PotatoTooltip`) showing entity portrait, name, and a close button
+- Entity type detection (player / NPC / item) with distinct background colors
+- Targeted highlight (yellow) and defeat highlight (gray) driven by combat log and target-change events
+- CC duration tracking for Lore-master Blinding Flash (30 s), Burglar Riddle (30 s), and Hunter Distracting Shot (35 s)
+- Keybinding assignment for add-tracker and clear-trackers actions
+- Settings persisted via `Turbine.PluginData` at character and account scope
+- Options panel registered with the Plugin Manager
+- Alphabetical sort mode
