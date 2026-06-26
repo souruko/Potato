@@ -68,6 +68,9 @@ end
 if _G.Settings.defeat_auto_remove_delay == nil then
     _G.Settings.defeat_auto_remove_delay = 0
 end
+if _G.Settings.duration_bar_height == nil then
+    _G.Settings.duration_bar_height = 20
+end
 if _G.Settings.color_player == nil then _G.Settings.color_player = {r=0.157, g=0.365, b=0.2} end
 if _G.Settings.color_npc    == nil then _G.Settings.color_npc    = {r=0,     g=0,     b=0}   end
 if _G.Settings.color_item   == nil then _G.Settings.color_item   = {r=0.2,   g=0.2,   b=0.2} end

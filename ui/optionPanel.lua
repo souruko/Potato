@@ -372,6 +372,26 @@ function OptionPanel:Constructor()
 
     top = top + 20 + 10
 
+    -- bar height for CC timers
+    self.barHeightTextbox = Turbine.UI.Lotro.TextBox()
+    self.barHeightTextbox:SetParent(self)
+    self.barHeightTextbox:SetPosition(INDENT, top)
+    self.barHeightTextbox:SetSize(34, 20)
+    self.barHeightTextbox:SetFont(BODY_FONT)
+    self.barHeightTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.barHeightTextbox:SetText(_G.Settings.duration_bar_height)
+
+    self.barHeightLabel = Turbine.UI.Label()
+    self.barHeightLabel:SetParent(self)
+    self.barHeightLabel:SetPosition(INDENT + 38, top)
+    self.barHeightLabel:SetSize(160, 20)
+    self.barHeightLabel:SetFont(BODY_FONT)
+    self.barHeightLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.barHeightLabel:SetForeColor(MUTED)
+    self.barHeightLabel:SetText("px bar height")
+
+    top = top + 20 + 10
+
     -- CC warning threshold
     self.ccThresholdTextbox = Turbine.UI.Lotro.TextBox()
     self.ccThresholdTextbox:SetParent(self)
@@ -418,9 +438,12 @@ function OptionPanel:Constructor()
     self.updateCombatButton.MouseClick = function(sender, args)
         _G.Settings.cc_warning_threshold     = tonumber(self.ccThresholdTextbox:GetText())  or _G.Settings.cc_warning_threshold
         _G.Settings.defeat_auto_remove_delay = tonumber(self.defeatDelayTextbox:GetText())  or _G.Settings.defeat_auto_remove_delay
+        _G.Settings.duration_bar_height      = tonumber(self.barHeightTextbox:GetText())    or _G.Settings.duration_bar_height
+        Potato:ApplySettings()
         _G.SaveSettings()
         self.ccThresholdTextbox:SetText(_G.Settings.cc_warning_threshold)
         self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
+        self.barHeightTextbox:SetText(_G.Settings.duration_bar_height)
     end
 
     local updateCombatHint = Turbine.UI.Label()

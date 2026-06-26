@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.2] — 2026-06-26
+
+### Added
+- Configurable CC duration bar height (`duration_bar_height`, default 20 px) — set in Combat tracking options and applied via the "apply" button
+- When "show CC timers" is enabled, the bar height is added as dedicated space below the tracker card name area, so the bar is never clipped
+
+### Changed
+- Duration bar now has a 2 px gap between itself and the bottom card border
+- Countdown label font reduced from Verdana 14 to Verdana 12 to better fit smaller bar heights
+
 ## [1.1.1] — 2026-06-24
 
 ### Added

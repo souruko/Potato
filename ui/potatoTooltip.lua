@@ -99,7 +99,7 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     -- countdown text label
     self.durationLabel = Turbine.UI.Label()
     self.durationLabel:SetParent(self)
-    self.durationLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.durationLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
     self.durationLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
     self.durationLabel:SetForeColor(Turbine.UI.Color.White)
     self.durationLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
@@ -183,12 +183,7 @@ end
 function PotatoTooltip:DisplayDuration(icon, duration, targetName)
 
     if targetName == self.name then
-        self.durationIcon:SetSize(32 , 32 )
         self.durationIcon:SetBackground(icon)
-        if self.durationHeight ~= 32 then
-            self.durationIcon:SetStretchMode(1)
-            self.durationIcon:SetSize(self.durationHeight, self.durationHeight)
-        end
         self.duration = duration
         self.startTime = Turbine.Engine.GetGameTime()
         self.endTime = self.startTime + self.duration
@@ -220,27 +215,30 @@ end
 
 function PotatoTooltip:ApplySettings()
 
+    -- bar height adds to the card when CC timers are enabled; +2 leaves a gap below the bar
+    local barHeight = _G.Settings.display_durations and _G.Settings.duration_bar_height or 0
+    local totalHeight = _G.Settings.tooltip_height + barHeight + (barHeight > 0 and 2 or 0)
+
     -- outer card size (includes spacing gap)
-    local selfHeight = _G.Settings.tooltip_height + _G.Settings.tooltip_spacing
+    local selfHeight = totalHeight + _G.Settings.tooltip_spacing
     local selfWidth = _G.Settings.width
     if _G.Settings.horizontal then
-        selfHeight = _G.Settings.tooltip_height
+        selfHeight = totalHeight
         selfWidth = _G.Settings.width + _G.Settings.tooltip_spacing
     end
     self:SetSize(selfWidth, selfHeight)
 
     -- border frame: full tooltip area (no spacing)
     self.borderFrame:SetPosition(0, 0)
-    self.borderFrame:SetSize(_G.Settings.width, _G.Settings.tooltip_height)
+    self.borderFrame:SetSize(_G.Settings.width, totalHeight)
 
     -- colored background: inset 1px inside border
     self.frame:SetPosition(1, 1)
-    self.frame:SetSize(_G.Settings.width - 2, _G.Settings.tooltip_height - 2)
+    self.frame:SetSize(_G.Settings.width - 2, totalHeight - 2)
 
     -- entity control: inset 2px total (1 border + 1 gap)
-    local innerHeight = _G.Settings.tooltip_height - 4
     self.entityControl:SetPosition(2, 2)
-    self.entityControl:SetSize(_G.Settings.width - 4, innerHeight)
+    self.entityControl:SetSize(_G.Settings.width - 4, totalHeight - 4)
 
     -- name label
     local labelWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - 22
@@ -251,18 +249,16 @@ function PotatoTooltip:ApplySettings()
     local closeButtonLeft = _G.Settings.width - 22
     self.closeButton:SetLeft(closeButtonLeft)
 
-    -- duration area sizing
-    self.durationHeight = 32
-    if (innerHeight - 38) < 32 then
-        self.durationHeight = innerHeight - 38
-    end
-
+    -- duration area sizing: bar sits below the name area, starting at the original tooltip bottom
+    self.durationHeight = _G.Settings.duration_bar_height
     self.durationBarWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - self.durationHeight
-    local durationTop = (math.max((innerHeight - 38 - 32), 0) /2) + 38
+    local durationTop = _G.Settings.tooltip_height - 2
 
     -- duration icon
     self.durationIcon:SetLeft(_G.Settings.tooltip_label_spacing)
     self.durationIcon:SetTop(durationTop)
+    self.durationIcon:SetStretchMode(1)
+    self.durationIcon:SetSize(self.durationHeight, self.durationHeight)
 
     -- duration bar track (full-width background)
     self.durationBarTrack:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
