@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.3] — 2026-06-27
+
+### Added
+- Morale bar row on each tracker card: shows a live `XX%` label and a proportional green fill bar, updated every game tick via `entity:GetMorale()` / `entity:GetMaxMorale()`; toggled by "show morale bar" checkbox in Combat tracking options
+- Morale bar appears as a dedicated row below the CC timer bar (or directly below the name area when CC timers are disabled); total card height expands to accommodate it
+
+### Changed
+- Tracker card outer size now always includes `tooltip_spacing` on both the bottom and right, so the gap between cards is equal in both directions regardless of fill mode
+
 ## [1.1.2] — 2026-06-26
 
 ### Added

@@ -37,6 +37,7 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.entityControl = Turbine.UI.Lotro.EntityControl()
     self.entityControl:SetParent(self)
     self.entityControl:SetEntity(entity)
+    self.entity = entity
 
     -- name label
     self.nameLabel = Turbine.UI.Label()
@@ -106,7 +107,34 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.durationLabel:SetMouseVisible(false)
     self.durationLabel:SetVisible(false)
 
+    -- morale bar track
+    self.moraleBarTrack = Turbine.UI.Control()
+    self.moraleBarTrack:SetParent(self)
+    self.moraleBarTrack:SetBackColor(Turbine.UI.Color(0.1, 0.05, 0.05))
+    self.moraleBarTrack:SetMouseVisible(false)
+    self.moraleBarTrack:SetVisible(false)
+
+    -- morale bar fill (declared after track so it renders on top)
+    self.moraleBar = Turbine.UI.Control()
+    self.moraleBar:SetParent(self)
+    self.moraleBar:SetBackColor(Turbine.UI.Color(0.1, 0.6, 0.15))
+    self.moraleBar:SetMouseVisible(false)
+    self.moraleBar:SetVisible(false)
+
+    -- morale percent label
+    self.moraleLabel = Turbine.UI.Label()
+    self.moraleLabel:SetParent(self)
+    self.moraleLabel:SetFont(Turbine.UI.Lotro.Font.Verdana12)
+    self.moraleLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
+    self.moraleLabel:SetForeColor(Turbine.UI.Color.White)
+    self.moraleLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
+    self.moraleLabel:SetMouseVisible(false)
+    self.moraleLabel:SetVisible(false)
+
     self:ApplySettings()
+    if _G.Settings.display_morale then
+        self:SetWantsUpdates(true)
+    end
 
 end
 
@@ -152,13 +180,15 @@ function PotatoTooltip:Update()
         end
     end
 
+    self:UpdateMorale()
+
     if not self.endTime then return end
     local timeLeft = self.endTime - now
 
     -- end the duration display
     if timeLeft <= 0 then
         self.endTime = nil
-        if not (self.isDead and self.defeatTime) then
+        if not (self.isDead and self.defeatTime) and not _G.Settings.display_morale then
             self:SetWantsUpdates(false)
         end
         self.durationIcon:SetVisible(false)
@@ -176,6 +206,19 @@ function PotatoTooltip:Update()
         self.durationBar:SetBackColor(Turbine.UI.Color.Red)
     else
         self.durationBar:SetBackColor(Turbine.UI.Color.Orange)
+    end
+
+end
+
+function PotatoTooltip:UpdateMorale()
+
+    if not (_G.Settings.display_morale and self.entity) then return end
+    local ok,  morale    = pcall(function() return self.entity:GetMorale() end)
+    local ok2, maxMorale = pcall(function() return self.entity:GetMaxMorale() end)
+    if ok and ok2 and maxMorale and maxMorale > 0 then
+        local pct = morale / maxMorale
+        self.moraleBar:SetWidth(math.floor(pct * self.moraleBarWidth))
+        self.moraleLabel:SetText(tostring(math.floor(pct * 100)) .. "%")
     end
 
 end
@@ -215,18 +258,14 @@ end
 
 function PotatoTooltip:ApplySettings()
 
-    -- bar height adds to the card when CC timers are enabled; +2 leaves a gap below the bar
-    local barHeight = _G.Settings.display_durations and _G.Settings.duration_bar_height or 0
-    local totalHeight = _G.Settings.tooltip_height + barHeight + (barHeight > 0 and 2 or 0)
+    local ccBarH   = _G.Settings.display_durations and _G.Settings.duration_bar_height or 0
+    local moraleH  = _G.Settings.display_morale    and _G.Settings.duration_bar_height or 0
+    local totalHeight = _G.Settings.tooltip_height
+        + ccBarH  + (ccBarH  > 0 and 2 or 0)
+        + moraleH + (moraleH > 0 and 2 or 0)
 
-    -- outer card size (includes spacing gap)
-    local selfHeight = totalHeight + _G.Settings.tooltip_spacing
-    local selfWidth = _G.Settings.width
-    if _G.Settings.horizontal then
-        selfHeight = totalHeight
-        selfWidth = _G.Settings.width + _G.Settings.tooltip_spacing
-    end
-    self:SetSize(selfWidth, selfHeight)
+    -- outer card size (spacing on both axes so gap is equal on bottom and right)
+    self:SetSize(_G.Settings.width + _G.Settings.tooltip_spacing, totalHeight + _G.Settings.tooltip_spacing)
 
     -- border frame: full tooltip area (no spacing)
     self.borderFrame:SetPosition(0, 0)
@@ -253,6 +292,7 @@ function PotatoTooltip:ApplySettings()
     self.durationHeight = _G.Settings.duration_bar_height
     self.durationBarWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - self.durationHeight
     local durationTop = _G.Settings.tooltip_height - 2
+    local moraleTop   = durationTop + ccBarH + (ccBarH > 0 and 2 or 0)
 
     -- duration icon
     self.durationIcon:SetLeft(_G.Settings.tooltip_label_spacing)
@@ -276,6 +316,32 @@ function PotatoTooltip:ApplySettings()
     self.durationLabel:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
     self.durationLabel:SetTop(durationTop)
     self.durationLabel:SetSize(self.durationBarWidth, self.durationHeight)
+
+    -- morale bar
+    local moraleLabelWidth = 38
+    self.moraleBarWidth = _G.Settings.width - (2 * _G.Settings.tooltip_label_spacing) - moraleLabelWidth
+
+    self.moraleLabel:SetLeft(_G.Settings.tooltip_label_spacing)
+    self.moraleLabel:SetTop(moraleTop)
+    self.moraleLabel:SetSize(moraleLabelWidth, self.durationHeight)
+
+    self.moraleBarTrack:SetLeft(_G.Settings.tooltip_label_spacing + moraleLabelWidth)
+    self.moraleBarTrack:SetTop(moraleTop)
+    self.moraleBarTrack:SetWidth(self.moraleBarWidth)
+    self.moraleBarTrack:SetHeight(self.durationHeight)
+
+    self.moraleBar:SetLeft(_G.Settings.tooltip_label_spacing + moraleLabelWidth)
+    self.moraleBar:SetTop(moraleTop)
+    self.moraleBar:SetWidth(self.moraleBarWidth)
+    self.moraleBar:SetHeight(self.durationHeight)
+
+    local showMorale = _G.Settings.display_morale
+    self.moraleBarTrack:SetVisible(showMorale)
+    self.moraleBar:SetVisible(showMorale)
+    self.moraleLabel:SetVisible(showMorale)
+    if showMorale then
+        self:SetWantsUpdates(true)
+    end
 
     -- color
     self.frame:SetBackColor(_G.Settings.tooltip_targeted_color)

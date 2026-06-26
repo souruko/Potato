@@ -64,26 +64,4 @@ Click **apply** to commit threshold and delay changes.
 
 **Appearance** — set background colors (0–255 RGB) for player, NPC, and item trackers. Click **apply colors** to commit.
 
-### Reloading
-
-After copying updated files:
-
-```
-/plugins unload Potato
-```
-
 Settings are saved per-character and fall back to account scope when no character save exists.
-
-## File structure
-
-```
-Potato/
-  Potato.plugin        manifest (name, version, entry package)
-  main.lua             entry point; loads/saves settings; instantiates window and options panel
-  chatParse.lua        combat log hook; parses defeat and CC hit events
-  targetChanged.lua    target-change hook; highlights the active tracker
-  ui/
-    potatoWindow.lua   main HUD window; owns the list of tracker cards
-    potatoTooltip.lua  individual tracker card; renders name, portrait, CC bar
-    optionPanel.lua    settings panel shown in the Plugin Manager
-```

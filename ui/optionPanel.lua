@@ -370,7 +370,20 @@ function OptionPanel:Constructor()
         _G.SaveSettings()
     end
 
-    top = top + 20 + 10
+    self.displayMoraleCheckbox = Turbine.UI.Lotro.CheckBox()
+    self.displayMoraleCheckbox:SetParent(self)
+    self.displayMoraleCheckbox:SetSize(200, 20)
+    self.displayMoraleCheckbox:SetPosition(INDENT + 180, top + 20)
+    self.displayMoraleCheckbox:SetFont(BODY_FONT)
+    self.displayMoraleCheckbox:SetText(" show morale bar")
+    self.displayMoraleCheckbox:SetChecked(_G.Settings.display_morale)
+    self.displayMoraleCheckbox.CheckedChanged = function(sender, args)
+        _G.Settings.display_morale = self.displayMoraleCheckbox:IsChecked()
+        Potato:ApplySettings()
+        _G.SaveSettings()
+    end
+
+    top = top + 40 + 10
 
     -- bar height for CC timers
     self.barHeightTextbox = Turbine.UI.Lotro.TextBox()
