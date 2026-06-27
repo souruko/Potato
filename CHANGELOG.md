@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.0] — 2026-06-27
+
+### Changed
+- Morale bar is now hidden for entities that do not expose morale (e.g. items); visibility is determined each tick by whether `GetMorale`/`GetMaxMorale` return valid data, rather than being shown unconditionally when the setting is enabled
+
 ## [1.1.3] — 2026-06-27
 
 ### Added

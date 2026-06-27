@@ -219,6 +219,13 @@ function PotatoTooltip:UpdateMorale()
         local pct = morale / maxMorale
         self.moraleBar:SetWidth(math.floor(pct * self.moraleBarWidth))
         self.moraleLabel:SetText(tostring(math.floor(pct * 100)) .. "%")
+        self.moraleBarTrack:SetVisible(true)
+        self.moraleBar:SetVisible(true)
+        self.moraleLabel:SetVisible(true)
+    else
+        self.moraleBarTrack:SetVisible(false)
+        self.moraleBar:SetVisible(false)
+        self.moraleLabel:SetVisible(false)
     end
 
 end
@@ -335,12 +342,12 @@ function PotatoTooltip:ApplySettings()
     self.moraleBar:SetWidth(self.moraleBarWidth)
     self.moraleBar:SetHeight(self.durationHeight)
 
-    local showMorale = _G.Settings.display_morale
-    self.moraleBarTrack:SetVisible(showMorale)
-    self.moraleBar:SetVisible(showMorale)
-    self.moraleLabel:SetVisible(showMorale)
-    if showMorale then
+    if _G.Settings.display_morale then
         self:SetWantsUpdates(true)
+    else
+        self.moraleBarTrack:SetVisible(false)
+        self.moraleBar:SetVisible(false)
+        self.moraleLabel:SetVisible(false)
     end
 
     -- color
