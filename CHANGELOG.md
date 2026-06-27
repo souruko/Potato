@@ -2,11 +2,6 @@
 
 ## [1.2.0] — 2026-06-27
 
-### Changed
-- Morale bar is now hidden for entities that do not expose morale (e.g. items); visibility is determined each tick by whether `GetMorale`/`GetMaxMorale` return valid data, rather than being shown unconditionally when the setting is enabled
-
-## [1.1.3] — 2026-06-27
-
 ### Added
 - Morale bar row on each tracker card: shows a live `XX%` label and a proportional green fill bar, updated every game tick via `entity:GetMorale()` / `entity:GetMaxMorale()`; toggled by "show morale bar" checkbox in Combat tracking options
 - Morale bar appears as a dedicated row below the CC timer bar (or directly below the name area when CC timers are disabled); total card height expands to accommodate it
