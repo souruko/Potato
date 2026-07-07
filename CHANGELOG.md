@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.1] — 2026-07-07
+
+### Added
+- Morale bar staleness gradient: bar stays green for 5 s after the last morale update, then fades to gray over the following 10 s, and locks on gray at 15 s — giving a visual indication that the displayed value may be stale (morale only updates when someone in the group has the entity targeted)
+
 ## [1.2.0] — 2026-06-27
 
 ### Added
