@@ -28,7 +28,7 @@ OptionPanel = class ( Turbine.UI.Control )
 
 function OptionPanel:Constructor()
     Turbine.UI.Control.Constructor(self)
-    self:SetSize(600, 760)
+    self:SetSize(600, 786)
 
     local top = 0
     local INDENT = 50
@@ -549,6 +549,8 @@ function OptionPanel:Constructor()
     local npcR, npcG, npcB = makeColorRow(top, "npc color", _G.Settings.color_npc)
     top = top + 20 + 6
     local itemR, itemG, itemB = makeColorRow(top, "item color", _G.Settings.color_item)
+    top = top + 20 + 6
+    local targetedR, targetedG, targetedB = makeColorRow(top, "targeted color", _G.Settings.color_targeted)
     top = top + 20 + 8
 
     self.applyColorsButton = Turbine.UI.Lotro.Button()
@@ -567,9 +569,10 @@ function OptionPanel:Constructor()
             gBox:SetText(math.floor(g * 255 + 0.5))
             bBox:SetText(math.floor(b * 255 + 0.5))
         end
-        parseColorRow("color_player", "tooltip_color_player", playerR, playerG, playerB)
-        parseColorRow("color_npc",    "tooltip_color_npc",    npcR,    npcG,    npcB)
-        parseColorRow("color_item",   "tooltip_color_item",   itemR,   itemG,   itemB)
+        parseColorRow("color_player",   "tooltip_color_player",   playerR,   playerG,   playerB)
+        parseColorRow("color_npc",      "tooltip_color_npc",      npcR,      npcG,      npcB)
+        parseColorRow("color_item",     "tooltip_color_item",     itemR,     itemG,     itemB)
+        parseColorRow("color_targeted", "tooltip_targeted_color", targetedR, targetedG, targetedB)
         _G.SaveSettings()
         Potato:ApplySettings()
     end

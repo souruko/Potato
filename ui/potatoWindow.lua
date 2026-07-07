@@ -238,12 +238,12 @@ function PotatoWindow:ApplySettings()
 
     -- size
     local height = (_G.Settings.tooltip_height + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
-    local width = _G.Settings.width
+    local width = _G.Settings.width + _G.Settings.tooltip_spacing
     if _G.Settings.horizontal then
         height = _G.Settings.tooltip_height
         width = (_G.Settings.width + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
         self.listbox:SetMaxItemsPerLine(1)
-    else        
+    else
         self.listbox:SetMaxItemsPerLine()
     end
     self.listbox:SetReverseFill(_G.Settings.reverseFill)

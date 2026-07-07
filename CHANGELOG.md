@@ -5,9 +5,13 @@
 ### Added
 - Morale bar row on each tracker card: shows a live `XX%` label and a proportional green fill bar, updated every game tick via `entity:GetMorale()` / `entity:GetMaxMorale()`; toggled by "show morale bar" checkbox in Combat tracking options
 - Morale bar appears as a dedicated row below the CC timer bar (or directly below the name area when CC timers are disabled); total card height expands to accommodate it
+- Morale bar is hidden automatically for entities that do not expose morale (e.g. items); visibility is determined each tick from live data rather than shown unconditionally
+- Targeted highlight color is now configurable in the Appearance section alongside the player/NPC/item colors (default yellow)
 
 ### Changed
 - Tracker card outer size now always includes `tooltip_spacing` on both the bottom and right, so the gap between cards is equal in both directions regardless of fill mode
+- 2 px gap added between the CC skill icon and the duration bar
+- Fixed tracker cards being clipped on the right in vertical fill mode by widening the window and listbox to match item width
 
 ## [1.1.2] — 2026-06-26
 

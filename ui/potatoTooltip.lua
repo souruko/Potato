@@ -132,9 +132,6 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.moraleLabel:SetVisible(false)
 
     self:ApplySettings()
-    if _G.Settings.display_morale then
-        self:SetWantsUpdates(true)
-    end
 
 end
 
@@ -171,6 +168,7 @@ end
 function PotatoTooltip:Update()
 
     local now = Turbine.Engine.GetGameTime()
+    local keepUpdating = false
 
     if self.isDead and self.defeatTime then
         local delay = _G.Settings.defeat_auto_remove_delay
@@ -178,34 +176,48 @@ function PotatoTooltip:Update()
             self.parentWindow:RemoveTooltip(self)
             return
         end
+        keepUpdating = true
     end
 
-    self:UpdateMorale()
-
-    if not self.endTime then return end
-    local timeLeft = self.endTime - now
-
-    -- end the duration display
-    if timeLeft <= 0 then
-        self.endTime = nil
-        if not (self.isDead and self.defeatTime) and not _G.Settings.display_morale then
-            self:SetWantsUpdates(false)
+    if self.endTime then
+        local timeLeft = self.endTime - now
+        if timeLeft <= 0 then
+            self.endTime = nil
+            self.durationIcon:SetVisible(false)
+            self.durationBarTrack:SetVisible(false)
+            self.durationBar:SetVisible(false)
+            self.durationLabel:SetVisible(false)
+        else
+            keepUpdating = true
+            self.durationBar:SetWidth(timeLeft / self.duration * self.durationBarWidth)
+            self.durationLabel:SetText(tostring(math.ceil(timeLeft)) .. "s")
+            if timeLeft <= _G.Settings.cc_warning_threshold then
+                self.durationBar:SetBackColor(Turbine.UI.Color.Red)
+            else
+                self.durationBar:SetBackColor(Turbine.UI.Color.Orange)
+            end
         end
-        self.durationIcon:SetVisible(false)
-        self.durationBarTrack:SetVisible(false)
-        self.durationBar:SetVisible(false)
-        self.durationLabel:SetVisible(false)
-        return
     end
 
-    local currentBarWidth = timeLeft / self.duration * self.durationBarWidth
-    self.durationBar:SetWidth(currentBarWidth)
-    self.durationLabel:SetText(tostring(math.ceil(timeLeft)) .. "s")
+    if _G.Settings.display_morale and self.lastMoraleUpdateTime then
+        local elapsed = now - self.lastMoraleUpdateTime
+        if elapsed < 5 then
+            keepUpdating = true
+        elseif elapsed < 15 then
+            keepUpdating = true
+            local t = (elapsed - 5) / 10
+            self.moraleBar:SetBackColor(Turbine.UI.Color(
+                0.1 + 0.4 * t,
+                0.6 - 0.1 * t,
+                0.15 + 0.35 * t
+            ))
+        else
+            self.moraleBar:SetBackColor(Turbine.UI.Color(0.5, 0.5, 0.5))
+        end
+    end
 
-    if timeLeft <= _G.Settings.cc_warning_threshold then
-        self.durationBar:SetBackColor(Turbine.UI.Color.Red)
-    else
-        self.durationBar:SetBackColor(Turbine.UI.Color.Orange)
+    if not keepUpdating then
+        self:SetWantsUpdates(false)
     end
 
 end
@@ -222,6 +234,9 @@ function PotatoTooltip:UpdateMorale()
         self.moraleBarTrack:SetVisible(true)
         self.moraleBar:SetVisible(true)
         self.moraleLabel:SetVisible(true)
+        self.lastMoraleUpdateTime = Turbine.Engine.GetGameTime()
+        self.moraleBar:SetBackColor(Turbine.UI.Color(0.1, 0.6, 0.15))
+        self:SetWantsUpdates(true)
     else
         self.moraleBarTrack:SetVisible(false)
         self.moraleBar:SetVisible(false)
@@ -296,10 +311,12 @@ function PotatoTooltip:ApplySettings()
     self.closeButton:SetLeft(closeButtonLeft)
 
     -- duration area sizing: bar sits below the name area, starting at the original tooltip bottom
+    local iconBarGap = 2
     self.durationHeight = _G.Settings.duration_bar_height
-    self.durationBarWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - self.durationHeight
+    self.durationBarWidth = _G.Settings.width - (2*_G.Settings.tooltip_label_spacing) - self.durationHeight - iconBarGap
     local durationTop = _G.Settings.tooltip_height - 2
     local moraleTop   = durationTop + ccBarH + (ccBarH > 0 and 2 or 0)
+    local barLeft     = _G.Settings.tooltip_label_spacing + self.durationHeight + iconBarGap
 
     -- duration icon
     self.durationIcon:SetLeft(_G.Settings.tooltip_label_spacing)
@@ -308,19 +325,19 @@ function PotatoTooltip:ApplySettings()
     self.durationIcon:SetSize(self.durationHeight, self.durationHeight)
 
     -- duration bar track (full-width background)
-    self.durationBarTrack:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
+    self.durationBarTrack:SetLeft(barLeft)
     self.durationBarTrack:SetTop(durationTop)
     self.durationBarTrack:SetWidth(self.durationBarWidth)
     self.durationBarTrack:SetHeight(self.durationHeight)
 
     -- duration bar fill
-    self.durationBar:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
+    self.durationBar:SetLeft(barLeft)
     self.durationBar:SetTop(durationTop)
     self.durationBar:SetWidth(self.durationBarWidth)
     self.durationBar:SetHeight(self.durationHeight)
 
     -- countdown label (overlaid on bar area)
-    self.durationLabel:SetLeft(self.durationHeight + _G.Settings.tooltip_label_spacing)
+    self.durationLabel:SetLeft(barLeft)
     self.durationLabel:SetTop(durationTop)
     self.durationLabel:SetSize(self.durationBarWidth, self.durationHeight)
 
@@ -342,9 +359,25 @@ function PotatoTooltip:ApplySettings()
     self.moraleBar:SetWidth(self.moraleBarWidth)
     self.moraleBar:SetHeight(self.durationHeight)
 
-    if _G.Settings.display_morale then
-        self:SetWantsUpdates(true)
+    if _G.Settings.display_morale and self.entity then
+        local handler = function(sender, args) self:UpdateMorale() end
+        self.moraleHandler = handler
+        self.entity.MoraleChanged             = handler
+        self.entity.BaseMaxMoraleChanged      = handler
+        self.entity.MaxMoraleChanged          = handler
+        self.entity.MaxTemporaryMoraleChanged = handler
+        self.entity.TemporaryMoraleChanged    = handler
+        self:UpdateMorale()
     else
+        if self.entity and self.moraleHandler then
+            local h = self.moraleHandler
+            if self.entity.MoraleChanged             == h then self.entity.MoraleChanged             = nil end
+            if self.entity.BaseMaxMoraleChanged      == h then self.entity.BaseMaxMoraleChanged      = nil end
+            if self.entity.MaxMoraleChanged          == h then self.entity.MaxMoraleChanged          = nil end
+            if self.entity.MaxTemporaryMoraleChanged == h then self.entity.MaxTemporaryMoraleChanged = nil end
+            if self.entity.TemporaryMoraleChanged    == h then self.entity.TemporaryMoraleChanged    = nil end
+            self.moraleHandler = nil
+        end
         self.moraleBarTrack:SetVisible(false)
         self.moraleBar:SetVisible(false)
         self.moraleLabel:SetVisible(false)

@@ -74,15 +74,16 @@ end
 if _G.Settings.display_morale == nil then
     _G.Settings.display_morale = false
 end
-if _G.Settings.color_player == nil then _G.Settings.color_player = {r=0.157, g=0.365, b=0.2} end
-if _G.Settings.color_npc    == nil then _G.Settings.color_npc    = {r=0,     g=0,     b=0}   end
-if _G.Settings.color_item   == nil then _G.Settings.color_item   = {r=0.2,   g=0.2,   b=0.2} end
+if _G.Settings.color_player   == nil then _G.Settings.color_player   = {r=0.157, g=0.365, b=0.2} end
+if _G.Settings.color_npc      == nil then _G.Settings.color_npc      = {r=0,     g=0,     b=0}   end
+if _G.Settings.color_item     == nil then _G.Settings.color_item     = {r=0.2,   g=0.2,   b=0.2} end
+if _G.Settings.color_targeted == nil then _G.Settings.color_targeted = {r=1,     g=1,     b=0}   end
 
 local function toColor(t) return Turbine.UI.Color(t.r, t.g, t.b) end
 _G.Settings.tooltip_color_player        = toColor(_G.Settings.color_player)
 _G.Settings.tooltip_color_npc           = toColor(_G.Settings.color_npc)
 _G.Settings.tooltip_color_item          = toColor(_G.Settings.color_item)
-_G.Settings.tooltip_targeted_color      = Turbine.UI.Color.Yellow
+_G.Settings.tooltip_targeted_color      = toColor(_G.Settings.color_targeted)
 _G.Settings.tooltip_defeated_color      = Turbine.UI.Color.Gray
 _G.Settings.tooltip_defeated_text_color = Turbine.UI.Color(0.8, 0.8, 0.8)
 
