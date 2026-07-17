@@ -226,8 +226,13 @@ function PotatoWindow:ClearDeadTooltips()
 end
 
 function PotatoWindow:RemoveTooltip(tooltip)
-    
-    self.listbox:RemoveItem(tooltip)
+
+    for i = 1, self.listbox:GetItemCount(), 1 do
+        if self.listbox:GetItem(i) == tooltip then
+            self.listbox:RemoveItem(tooltip)
+            return
+        end
+    end
 
 end
 
@@ -237,10 +242,15 @@ function PotatoWindow:ApplySettings()
     self:SetPosition(_G.Settings.left, _G.Settings.top)
 
     -- size
-    local height = (_G.Settings.tooltip_height + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
+    local ccBarH  = _G.Settings.display_durations and _G.Settings.duration_bar_height or 0
+    local moraleH = _G.Settings.display_morale    and _G.Settings.duration_bar_height or 0
+    local tooltipTotalHeight = _G.Settings.tooltip_height
+        + ccBarH  + (ccBarH  > 0 and 2 or 0)
+        + moraleH + (moraleH > 0 and 2 or 0)
+    local height = (tooltipTotalHeight + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
     local width = _G.Settings.width + _G.Settings.tooltip_spacing
     if _G.Settings.horizontal then
-        height = _G.Settings.tooltip_height
+        height = tooltipTotalHeight
         width = (_G.Settings.width + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
         self.listbox:SetMaxItemsPerLine(1)
     else

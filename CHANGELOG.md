@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.2] — 2026-07-17
+
+### Fixed
+- Window and listbox height now accounts for CC timer bar and morale bar rows; previously only `tooltip_height` was used, causing trackers to be clipped when either bar was enabled
+- "Index out of range" error when auto-remove defeated delay is > 0; `RemoveTooltip` now guards against removing a tooltip that is no longer in the listbox (e.g. removed by a concurrent tick or the clear-dead keybinding)
+
 ## [1.2.1] — 2026-07-07
 
 ### Added
