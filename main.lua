@@ -74,6 +74,26 @@ end
 if _G.Settings.display_morale == nil then
     _G.Settings.display_morale = false
 end
+if _G.Settings.cc_custom_skills == nil then _G.Settings.cc_custom_skills = {} end
+for i = 1, 5 do
+    if _G.Settings.cc_custom_skills[i] == nil then
+        _G.Settings.cc_custom_skills[i] = { name = "", duration = 30, enabled = false, icon = 1090541222 }
+    end
+    if _G.Settings.cc_custom_skills[i].icon == nil then
+        _G.Settings.cc_custom_skills[i].icon = 1090541222
+    end
+end
+if _G.Settings.cc_skills == nil then _G.Settings.cc_skills = {} end
+local function _defaultSkill(key, duration)
+    if _G.Settings.cc_skills[key] == nil then
+        _G.Settings.cc_skills[key] = { enabled = true, duration = duration }
+    end
+end
+_defaultSkill("blinding_flash",    30)
+_defaultSkill("riddle",            30)
+_defaultSkill("distracting_shot",  35)
+_defaultSkill("thrum_of_the_sea",  25)
+_defaultSkill("sop_righteousness", 15)
 if _G.Settings.color_player   == nil then _G.Settings.color_player   = {r=0.157, g=0.365, b=0.2} end
 if _G.Settings.color_npc      == nil then _G.Settings.color_npc      = {r=0,     g=0,     b=0}   end
 if _G.Settings.color_item     == nil then _G.Settings.color_item     = {r=0.2,   g=0.2,   b=0.2} end

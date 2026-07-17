@@ -29,51 +29,77 @@
     if _G.Settings.display_durations then
         -- lm cc duration
         if string.find(args.Message, "hit</rgb> with Blinding Flash on ") then
-            local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-
-            if updateType == 1 and targetName ~= nil then
-                Potato:DisplayDuration(1090541222, 30, targetName)
-                return
+            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.blinding_flash
+            if sk == nil or sk.enabled then
+                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                if updateType == 1 and targetName ~= nil then
+                    Potato:DisplayDuration(1090541222, sk and sk.duration or 30, targetName)
+                    return
+                end
             end
         end
 
         -- burg cc duration
         if string.find(args.Message, "hit</rgb> with Riddle on ") then
-            local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-
-            if updateType == 1 and targetName ~= nil then
-                Potato:DisplayDuration(1090541257, 30, targetName)
-                return
+            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.riddle
+            if sk == nil or sk.enabled then
+                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                if updateType == 1 and targetName ~= nil then
+                    Potato:DisplayDuration(1090541257, sk and sk.duration or 30, targetName)
+                    return
+                end
             end
         end
 
         -- hunter cc duration
         if string.find(args.Message, "hit</rgb> with Distracting Shot on ") then
-            local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-
-            if updateType == 1 and targetName ~= nil then
-                Potato:DisplayDuration(1091459007, 35, targetName)
-                return
+            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.distracting_shot
+            if sk == nil or sk.enabled then
+                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                if updateType == 1 and targetName ~= nil then
+                    Potato:DisplayDuration(1091459007, sk and sk.duration or 35, targetName)
+                    return
+                end
             end
         end
 
         -- mariner cc duration
         if string.find(args.Message, "hit</rgb> with Thrum of the Sea on ") then
-            local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-
-            if updateType == 1 and targetName ~= nil then
-                Potato:DisplayDuration(1092830905, 25, targetName)
-                return
+            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.thrum_of_the_sea
+            if sk == nil or sk.enabled then
+                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                if updateType == 1 and targetName ~= nil then
+                    Potato:DisplayDuration(1092830905, sk and sk.duration or 25, targetName)
+                    return
+                end
             end
         end
 
         -- lm stun imunity
         if string.find(args.Message, "benefit</rgb> with Sign of Power: Righteousness on ") then
-            local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.sop_righteousness
+            if sk == nil or sk.enabled then
+                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                if updateType == 17 and targetName ~= nil then
+                    Potato:DisplayDuration(1090553882, sk and sk.duration or 15, targetName)
+                    return
+                end
+            end
+        end
 
-            if updateType == 17 and targetName ~= nil then
-                Potato:DisplayDuration(1090553882, 15, targetName)
-                return
+        -- custom cc skills
+        if _G.Settings.cc_custom_skills then
+            for i = 1, #_G.Settings.cc_custom_skills do
+                local sk = _G.Settings.cc_custom_skills[i]
+                if sk.enabled and sk.name ~= "" then
+                    if string.find(args.Message, "hit</rgb> with " .. sk.name .. " on ") then
+                        local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+                        if updateType == 1 and targetName ~= nil then
+                            Potato:DisplayDuration(sk.icon or 1090541222, sk.duration, targetName)
+                            return
+                        end
+                    end
+                end
             end
         end
     end

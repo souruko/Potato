@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0] — 2026-07-17
+
+### Added
+- Per-skill CC timer configuration in the options panel: each built-in skill (Blinding Flash, Riddle, Distracting Shot, Thrum of the Sea, SoP: Righteousness) can now be individually enabled/disabled and have its duration overridden
+- Five custom CC skill slots: enter any skill name as it appears in the combat log, set a duration, and optionally supply a custom icon ID — matched against the `hit with <skill> on` pattern
+- `cc_skills` and `cc_custom_skills` settings tables persisted via `Turbine.PluginData`
+
+### Changed
+- Options panel height expanded to accommodate the new CC Timers section
+- "Show CC timers" checkbox moved into its own labeled "CC Timers" section
+- Defeat auto-remove delay field and its "apply" button moved to the Combat tracking section; CC bar height and warning threshold now have a separate "apply" button
+
 ## [1.2.2] — 2026-07-17
 
 ### Fixed

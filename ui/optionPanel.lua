@@ -28,7 +28,7 @@ OptionPanel = class ( Turbine.UI.Control )
 
 function OptionPanel:Constructor()
     Turbine.UI.Control.Constructor(self)
-    self:SetSize(600, 786)
+    self:SetSize(600, 1280)
 
     local top = 0
     local INDENT = 50
@@ -358,22 +358,10 @@ function OptionPanel:Constructor()
         _G.SaveSettings()
     end
 
-    self.displayDurationsCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.displayDurationsCheckbox:SetParent(self)
-    self.displayDurationsCheckbox:SetSize(200, 20)
-    self.displayDurationsCheckbox:SetPosition(INDENT + 180, top)
-    self.displayDurationsCheckbox:SetFont(BODY_FONT)
-    self.displayDurationsCheckbox:SetText(" show CC timers")
-    self.displayDurationsCheckbox:SetChecked(_G.Settings.display_durations)
-    self.displayDurationsCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.display_durations = self.displayDurationsCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
     self.displayMoraleCheckbox = Turbine.UI.Lotro.CheckBox()
     self.displayMoraleCheckbox:SetParent(self)
     self.displayMoraleCheckbox:SetSize(200, 20)
-    self.displayMoraleCheckbox:SetPosition(INDENT + 180, top + 20)
+    self.displayMoraleCheckbox:SetPosition(INDENT + 200, top)
     self.displayMoraleCheckbox:SetFont(BODY_FONT)
     self.displayMoraleCheckbox:SetText(" show morale bar")
     self.displayMoraleCheckbox:SetChecked(_G.Settings.display_morale)
@@ -383,9 +371,70 @@ function OptionPanel:Constructor()
         _G.SaveSettings()
     end
 
-    top = top + 40 + 10
+    top = top + 20 + 10
 
-    -- bar height for CC timers
+    self.defeatDelayTextbox = Turbine.UI.Lotro.TextBox()
+    self.defeatDelayTextbox:SetParent(self)
+    self.defeatDelayTextbox:SetPosition(INDENT, top)
+    self.defeatDelayTextbox:SetSize(34, 20)
+    self.defeatDelayTextbox:SetFont(BODY_FONT)
+    self.defeatDelayTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
+
+    self.defeatDelayLabel = Turbine.UI.Label()
+    self.defeatDelayLabel:SetParent(self)
+    self.defeatDelayLabel:SetPosition(INDENT + 38, top)
+    self.defeatDelayLabel:SetSize(220, 20)
+    self.defeatDelayLabel:SetFont(BODY_FONT)
+    self.defeatDelayLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    self.defeatDelayLabel:SetForeColor(MUTED)
+    self.defeatDelayLabel:SetText("s auto-remove defeated (0=off)")
+
+    top = top + 20 + 8
+
+    self.updateCombatButton = Turbine.UI.Lotro.Button()
+    self.updateCombatButton:SetParent(self)
+    self.updateCombatButton:SetText("apply")
+    self.updateCombatButton:SetWidth(70)
+    self.updateCombatButton:SetPosition(INDENT, top)
+    self.updateCombatButton.MouseClick = function(sender, args)
+        _G.Settings.defeat_auto_remove_delay = tonumber(self.defeatDelayTextbox:GetText()) or _G.Settings.defeat_auto_remove_delay
+        Potato:ApplySettings()
+        _G.SaveSettings()
+        self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
+    end
+
+    local updateCombatHint = Turbine.UI.Label()
+    updateCombatHint:SetParent(self)
+    updateCombatHint:SetPosition(INDENT + 76, top + 2)
+    updateCombatHint:SetSize(200, 18)
+    updateCombatHint:SetFont(BODY_FONT)
+    updateCombatHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    updateCombatHint:SetForeColor(MUTED)
+    updateCombatHint:SetText("changes apply on click")
+
+    top = top + 20 + 14
+
+    ---------------------------------------------------------------------------------------------------
+    -- CC TIMERS
+    ---------------------------------------------------------------------------------------------------
+    makeHeader(self, top, "CC Timers")
+    top = top + HEADER_H + 10
+
+    self.displayDurationsCheckbox = Turbine.UI.Lotro.CheckBox()
+    self.displayDurationsCheckbox:SetParent(self)
+    self.displayDurationsCheckbox:SetSize(200, 20)
+    self.displayDurationsCheckbox:SetPosition(INDENT, top)
+    self.displayDurationsCheckbox:SetFont(BODY_FONT)
+    self.displayDurationsCheckbox:SetText(" show CC timers")
+    self.displayDurationsCheckbox:SetChecked(_G.Settings.display_durations)
+    self.displayDurationsCheckbox.CheckedChanged = function(sender, args)
+        _G.Settings.display_durations = self.displayDurationsCheckbox:IsChecked()
+        _G.SaveSettings()
+    end
+
+    top = top + 20 + 10
+
     self.barHeightTextbox = Turbine.UI.Lotro.TextBox()
     self.barHeightTextbox:SetParent(self)
     self.barHeightTextbox:SetPosition(INDENT, top)
@@ -397,18 +446,15 @@ function OptionPanel:Constructor()
     self.barHeightLabel = Turbine.UI.Label()
     self.barHeightLabel:SetParent(self)
     self.barHeightLabel:SetPosition(INDENT + 38, top)
-    self.barHeightLabel:SetSize(160, 20)
+    self.barHeightLabel:SetSize(120, 20)
     self.barHeightLabel:SetFont(BODY_FONT)
     self.barHeightLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.barHeightLabel:SetForeColor(MUTED)
     self.barHeightLabel:SetText("px bar height")
 
-    top = top + 20 + 10
-
-    -- CC warning threshold
     self.ccThresholdTextbox = Turbine.UI.Lotro.TextBox()
     self.ccThresholdTextbox:SetParent(self)
-    self.ccThresholdTextbox:SetPosition(INDENT, top)
+    self.ccThresholdTextbox:SetPosition(INDENT + 180, top)
     self.ccThresholdTextbox:SetSize(34, 20)
     self.ccThresholdTextbox:SetFont(BODY_FONT)
     self.ccThresholdTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
@@ -416,57 +462,243 @@ function OptionPanel:Constructor()
 
     self.ccThresholdLabel = Turbine.UI.Label()
     self.ccThresholdLabel:SetParent(self)
-    self.ccThresholdLabel:SetPosition(INDENT + 38, top)
-    self.ccThresholdLabel:SetSize(200, 20)
+    self.ccThresholdLabel:SetPosition(INDENT + 218, top)
+    self.ccThresholdLabel:SetSize(220, 20)
     self.ccThresholdLabel:SetFont(BODY_FONT)
     self.ccThresholdLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
     self.ccThresholdLabel:SetForeColor(MUTED)
     self.ccThresholdLabel:SetText("s CC warning (bar turns red)")
 
-    -- auto-remove defeated delay
-    self.defeatDelayTextbox = Turbine.UI.Lotro.TextBox()
-    self.defeatDelayTextbox:SetParent(self)
-    self.defeatDelayTextbox:SetPosition(INDENT + 260, top)
-    self.defeatDelayTextbox:SetSize(34, 20)
-    self.defeatDelayTextbox:SetFont(BODY_FONT)
-    self.defeatDelayTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
+    top = top + 20 + 8
 
-    self.defeatDelayLabel = Turbine.UI.Label()
-    self.defeatDelayLabel:SetParent(self)
-    self.defeatDelayLabel:SetPosition(INDENT + 298, top)
-    self.defeatDelayLabel:SetSize(220, 20)
-    self.defeatDelayLabel:SetFont(BODY_FONT)
-    self.defeatDelayLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.defeatDelayLabel:SetForeColor(MUTED)
-    self.defeatDelayLabel:SetText("s auto-remove defeated (0=off)")
-
-    top = top + 20 + 6
-
-    self.updateCombatButton = Turbine.UI.Lotro.Button()
-    self.updateCombatButton:SetParent(self)
-    self.updateCombatButton:SetText("apply")
-    self.updateCombatButton:SetWidth(70)
-    self.updateCombatButton:SetPosition(INDENT, top)
-    self.updateCombatButton.MouseClick = function(sender, args)
-        _G.Settings.cc_warning_threshold     = tonumber(self.ccThresholdTextbox:GetText())  or _G.Settings.cc_warning_threshold
-        _G.Settings.defeat_auto_remove_delay = tonumber(self.defeatDelayTextbox:GetText())  or _G.Settings.defeat_auto_remove_delay
-        _G.Settings.duration_bar_height      = tonumber(self.barHeightTextbox:GetText())    or _G.Settings.duration_bar_height
+    self.updateCCButton = Turbine.UI.Lotro.Button()
+    self.updateCCButton:SetParent(self)
+    self.updateCCButton:SetText("apply")
+    self.updateCCButton:SetWidth(70)
+    self.updateCCButton:SetPosition(INDENT, top)
+    self.updateCCButton.MouseClick = function(sender, args)
+        _G.Settings.cc_warning_threshold = tonumber(self.ccThresholdTextbox:GetText()) or _G.Settings.cc_warning_threshold
+        _G.Settings.duration_bar_height   = tonumber(self.barHeightTextbox:GetText())   or _G.Settings.duration_bar_height
         Potato:ApplySettings()
         _G.SaveSettings()
         self.ccThresholdTextbox:SetText(_G.Settings.cc_warning_threshold)
-        self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
         self.barHeightTextbox:SetText(_G.Settings.duration_bar_height)
     end
 
-    local updateCombatHint = Turbine.UI.Label()
-    updateCombatHint:SetParent(self)
-    updateCombatHint:SetPosition(INDENT + 76, top + 2)
-    updateCombatHint:SetSize(200, 18)
-    updateCombatHint:SetFont(BODY_FONT)
-    updateCombatHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    updateCombatHint:SetForeColor(MUTED)
-    updateCombatHint:SetText("changes apply on click")
+    local updateCCHint = Turbine.UI.Label()
+    updateCCHint:SetParent(self)
+    updateCCHint:SetPosition(INDENT + 76, top + 2)
+    updateCCHint:SetSize(200, 18)
+    updateCCHint:SetFont(BODY_FONT)
+    updateCCHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    updateCCHint:SetForeColor(MUTED)
+    updateCCHint:SetText("changes apply on click")
+
+    top = top + 20 + 10
+
+    -- per skill sub-section
+    local perSkillLabel = Turbine.UI.Label()
+    perSkillLabel:SetParent(self)
+    perSkillLabel:SetPosition(INDENT, top)
+    perSkillLabel:SetSize(400, 16)
+    perSkillLabel:SetFont(BODY_FONT)
+    perSkillLabel:SetForeColor(MUTED)
+    perSkillLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    perSkillLabel:SetText("per skill:")
+
+    top = top + 16 + 8
+
+    local CC_LABEL_W = 270
+    local CC_DUR_W   = 44
+
+    local ccSkillDefs = {
+        { key = "blinding_flash",    label = " Blinding Flash (LM)" },
+        { key = "riddle",            label = " Riddle (Burg)" },
+        { key = "distracting_shot",  label = " Distracting Shot (Hunter)" },
+        { key = "thrum_of_the_sea",  label = " Thrum of the Sea (Mariner)" },
+        { key = "sop_righteousness", label = " SoP: Righteousness (LM)" },
+    }
+
+    self.ccSkillCheckboxes = {}
+    self.ccSkillTextboxes  = {}
+
+    for _, skill in ipairs(ccSkillDefs) do
+        local cb = Turbine.UI.Lotro.CheckBox()
+        cb:SetParent(self)
+        cb:SetPosition(INDENT, top)
+        cb:SetSize(CC_LABEL_W, 20)
+        cb:SetFont(BODY_FONT)
+        cb:SetText(skill.label)
+        cb:SetChecked(_G.Settings.cc_skills[skill.key].enabled)
+        local skillKey = skill.key
+        cb.CheckedChanged = function(sender, args)
+            _G.Settings.cc_skills[skillKey].enabled = cb:IsChecked()
+            _G.SaveSettings()
+        end
+        self.ccSkillCheckboxes[skill.key] = cb
+
+        local tb = Turbine.UI.Lotro.TextBox()
+        tb:SetParent(self)
+        tb:SetPosition(INDENT + CC_LABEL_W + 8, top)
+        tb:SetSize(CC_DUR_W, 20)
+        tb:SetFont(BODY_FONT)
+        tb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        tb:SetText(_G.Settings.cc_skills[skill.key].duration)
+        self.ccSkillTextboxes[skill.key] = tb
+
+        local sLbl = Turbine.UI.Label()
+        sLbl:SetParent(self)
+        sLbl:SetPosition(INDENT + CC_LABEL_W + CC_DUR_W + 12, top)
+        sLbl:SetSize(20, 20)
+        sLbl:SetFont(BODY_FONT)
+        sLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        sLbl:SetForeColor(MUTED)
+        sLbl:SetText("s")
+
+        top = top + 20 + 8
+    end
+
+    top = top + 4
+
+    self.applySkillsButton = Turbine.UI.Lotro.Button()
+    self.applySkillsButton:SetParent(self)
+    self.applySkillsButton:SetText("apply")
+    self.applySkillsButton:SetWidth(70)
+    self.applySkillsButton:SetPosition(INDENT, top)
+    self.applySkillsButton.MouseClick = function(sender, args)
+        for _, skill in ipairs(ccSkillDefs) do
+            local dur = tonumber(self.ccSkillTextboxes[skill.key]:GetText())
+            if dur then _G.Settings.cc_skills[skill.key].duration = dur end
+            self.ccSkillTextboxes[skill.key]:SetText(_G.Settings.cc_skills[skill.key].duration)
+        end
+        _G.SaveSettings()
+    end
+
+    local applySkillsHint = Turbine.UI.Label()
+    applySkillsHint:SetParent(self)
+    applySkillsHint:SetPosition(INDENT + 76, top + 2)
+    applySkillsHint:SetSize(240, 18)
+    applySkillsHint:SetFont(BODY_FONT)
+    applySkillsHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    applySkillsHint:SetForeColor(MUTED)
+    applySkillsHint:SetText("durations apply on click, enable/disable is immediate")
+
+    top = top + 20 + 10
+
+    -- custom skills sub-section
+    local customSkillLabel = Turbine.UI.Label()
+    customSkillLabel:SetParent(self)
+    customSkillLabel:SetPosition(INDENT, top)
+    customSkillLabel:SetSize(400, 16)
+    customSkillLabel:SetFont(BODY_FONT)
+    customSkillLabel:SetForeColor(MUTED)
+    customSkillLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    customSkillLabel:SetText("custom skills:")
+
+    top = top + 16 + 8
+
+    local CUSTOM_CB_W   = 20
+    local CUSTOM_NAME_W = 190
+    local CUSTOM_DUR_W  = 44
+
+    self.ccCustomCheckboxes = {}
+    self.ccCustomNameBoxes  = {}
+    self.ccCustomDurBoxes   = {}
+    self.ccCustomIconBoxes  = {}
+
+    for i = 1, 5 do
+        local sk = _G.Settings.cc_custom_skills[i]
+
+        local cb = Turbine.UI.Lotro.CheckBox()
+        cb:SetParent(self)
+        cb:SetPosition(INDENT, top)
+        cb:SetSize(CUSTOM_CB_W, 20)
+        cb:SetText("")
+        cb:SetChecked(sk.enabled)
+        local idx = i
+        cb.CheckedChanged = function(sender, args)
+            _G.Settings.cc_custom_skills[idx].enabled = cb:IsChecked()
+            _G.SaveSettings()
+        end
+        self.ccCustomCheckboxes[i] = cb
+
+        local nameTb = Turbine.UI.Lotro.TextBox()
+        nameTb:SetParent(self)
+        nameTb:SetPosition(INDENT + CUSTOM_CB_W + 4, top)
+        nameTb:SetSize(CUSTOM_NAME_W, 20)
+        nameTb:SetFont(BODY_FONT)
+        nameTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        nameTb:SetText(sk.name)
+        self.ccCustomNameBoxes[i] = nameTb
+
+        local durTb = Turbine.UI.Lotro.TextBox()
+        durTb:SetParent(self)
+        durTb:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6, top)
+        durTb:SetSize(CUSTOM_DUR_W, 20)
+        durTb:SetFont(BODY_FONT)
+        durTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        durTb:SetText(sk.duration)
+        self.ccCustomDurBoxes[i] = durTb
+
+        local sLbl = Turbine.UI.Label()
+        sLbl:SetParent(self)
+        sLbl:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4, top)
+        sLbl:SetSize(16, 20)
+        sLbl:SetFont(BODY_FONT)
+        sLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        sLbl:SetForeColor(MUTED)
+        sLbl:SetText("s")
+
+        local iconLbl = Turbine.UI.Label()
+        iconLbl:SetParent(self)
+        iconLbl:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4 + 16 + 8, top)
+        iconLbl:SetSize(32, 20)
+        iconLbl:SetFont(BODY_FONT)
+        iconLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        iconLbl:SetForeColor(MUTED)
+        iconLbl:SetText("icon:")
+
+        local iconTb = Turbine.UI.Lotro.TextBox()
+        iconTb:SetParent(self)
+        iconTb:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4 + 16 + 8 + 36, top)
+        iconTb:SetSize(100, 20)
+        iconTb:SetFont(BODY_FONT)
+        iconTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+        iconTb:SetText(sk.icon or 1090541222)
+        self.ccCustomIconBoxes[i] = iconTb
+
+        top = top + 20 + 8
+    end
+
+    top = top + 4
+
+    self.applyCustomSkillsButton = Turbine.UI.Lotro.Button()
+    self.applyCustomSkillsButton:SetParent(self)
+    self.applyCustomSkillsButton:SetText("apply")
+    self.applyCustomSkillsButton:SetWidth(70)
+    self.applyCustomSkillsButton:SetPosition(INDENT, top)
+    self.applyCustomSkillsButton.MouseClick = function(sender, args)
+        for i = 1, 5 do
+            local name = self.ccCustomNameBoxes[i]:GetText() or ""
+            local dur  = tonumber(self.ccCustomDurBoxes[i]:GetText())
+            local icon = tonumber(self.ccCustomIconBoxes[i]:GetText())
+            _G.Settings.cc_custom_skills[i].name = name
+            if dur  then _G.Settings.cc_custom_skills[i].duration = dur  end
+            if icon then _G.Settings.cc_custom_skills[i].icon     = icon end
+            self.ccCustomDurBoxes[i]:SetText(_G.Settings.cc_custom_skills[i].duration)
+            self.ccCustomIconBoxes[i]:SetText(_G.Settings.cc_custom_skills[i].icon)
+        end
+        _G.SaveSettings()
+    end
+
+    local applyCustomHint = Turbine.UI.Label()
+    applyCustomHint:SetParent(self)
+    applyCustomHint:SetPosition(INDENT + 76, top + 2)
+    applyCustomHint:SetSize(280, 18)
+    applyCustomHint:SetFont(BODY_FONT)
+    applyCustomHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
+    applyCustomHint:SetForeColor(MUTED)
+    applyCustomHint:SetText("name/duration apply on click, enable/disable is immediate")
 
     top = top + 20 + 14
 
