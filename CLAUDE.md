@@ -8,12 +8,21 @@ Potato is a Lord of the Rings Online (LotRO) plugin written in Lua using the gam
 
 There is no build system, no test runner, and no package manager. The plugin is pure Lua loaded directly by the game engine.
 
-## Two directories
+## Where the code lives
 
-- `/home/souru/lotro/documents_live/plugins/Potato` — the working dev copy (edit here)
-- `/home/souru/.local/share/Steam/steamapps/compatdata/212500/pfx/drive_c/users/steamuser/Documents/The Lord of the Rings Online/plugins/Potato` — the path LotRO reads at runtime (inside the Wine prefix)
+One directory, reachable by two paths — `/home/souru/lotro/live_document_folder` is a **symlink** to
+`/home/souru/.local/share/Steam/steamapps/compatdata/212500/pfx/drive_c/users/steamuser/Documents/The Lord of the Rings Online`
+(the Wine prefix LotRO reads at runtime). Editing through either path edits the same file; there is no copy step.
 
-To test changes in-game, copy edited files from the dev path to the Steam path, then reload the plugin in-game with `/plugins reload Potato`.
+To test changes, edit, then reload in-game with `/plugins reload Potato`.
+
+## Redesign in progress
+
+A full visual redesign is underway on the `redesign` branch. `docs/redesign/` holds the design
+handoff (`HANDOFF.md` — final colours, sizes and copy), the two design canvases as HTML, and
+`PLAN.md` — the phase breakdown, decisions and open questions. **Read `PLAN.md` before touching any
+`ui/` file.** The handoff HTML is a design reference, not code to port: everything is recreated with
+`Turbine.UI.Control` rectangles, not HTML/CSS.
 
 ## Architecture
 
