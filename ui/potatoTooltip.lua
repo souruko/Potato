@@ -4,7 +4,7 @@
 -- one tracker card per pinned entity
 --
 -- - a rail down the left edge carrying the entity type, thickened when it's your target
--- - name, type line, and a dismiss column that only appears on hover
+-- - name, type line, and a dismiss button that only appears on hover
 -- - CC and morale bars along the bottom edge
 --
 -- the card is a fixed height whatever is showing: the name and type line own the top of it and
@@ -134,13 +134,10 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.ccFill = Rect(self, _G.Theme.color.accent)
     self.ccFill:SetVisible(false)
 
-    -- dismiss column, hover only. the permanent red X is gone
+    -- dismiss button, hover only: a solid red square in the top-right corner
     self.dismissCol = Turbine.UI.Control()
     self.dismissCol:SetParent(self)
-    self.dismissCol:SetBackColor(_G.Theme.color.dismiss)
-    -- the back color carries an alpha, and the default blend mode composites it into everything
-    -- drawn behind rather than over it. AlphaBlend keeps the translucency on this fill alone.
-    self.dismissCol:SetBackColorBlendMode(Turbine.UI.BlendMode.AlphaBlend)
+    self.dismissCol:SetBackColor(_G.Theme.color.dismissFill)
     self.dismissCol:SetVisible(false)
     self.dismissCol.MouseClick = function(sender, args)
         self.parentWindow:RemoveTooltip(self)
@@ -158,7 +155,7 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.dismissLabel:SetText("x")
     self.dismissLabel:SetFont(_G.Theme.font.dismiss)
     self.dismissLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.dismissLabel:SetForeColor(_G.Theme.color.dismissGlyph)
+    self.dismissLabel:SetForeColor(_G.Theme.color.dismissMark)
     self.dismissLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.dismissLabel:SetMouseVisible(false)
 
@@ -179,7 +176,7 @@ end
 -- hover only shows through on a card that isn't already carrying a louder state
 function PotatoTooltip:SetHover(value)
 
-    -- with the dismiss column switched off the card is cleared by the keybinding instead, so the
+    -- with the dismiss button switched off the card is cleared by the keybinding instead, so the
     -- hover fill still changes but nothing is drawn over the name
     self.dismissCol:SetVisible(value and _G.Settings.show_dismiss ~= false)
 
@@ -264,7 +261,7 @@ function PotatoTooltip:ApplyState()
     self.rail:SetSize(railW, m.height)
     self.rail:SetPosition(0, 0)
 
-    -- kept for the dismiss column, which insets itself by the border
+    -- kept for the dismiss button, which insets itself by the border
     self.borderWidth = borderW
 
     self:LayoutBars()
@@ -390,23 +387,21 @@ function PotatoTooltip:BarStripHeight()
 
 end
 
--- the dismiss column clears both the frame and whatever bars are showing, so it never covers a
--- timer or a morale figure. it is laid out from LayoutBars rather than ApplySettings because both
--- of its insets move at runtime: the border thickens on a targeted card, and the bar strip grows
--- as CC and morale come and go.
+-- the dismiss button sits inside the top-right corner, clear of the border. it only owns that
+-- corner, so the seconds and the morale figure along the bottom edge stay readable while the mouse
+-- is over the card. laid out from LayoutBars rather than ApplySettings because its inset moves at
+-- runtime — the border thickens on a targeted card.
 function PotatoTooltip:LayoutDismiss()
 
     local m = self.metrics
     local borderW = self.borderWidth or _G.Theme.metrics.borderWidth
-    local barStrip = self:BarStripHeight()
 
-    local width  = _G.Theme.metrics.dismissWidth
-    local bottom = (barStrip > 0) and barStrip or borderW
-    local height = m.height - borderW - bottom
+    -- never larger than the card's inside, for a short custom card
+    local size = math.min(_G.Theme.metrics.dismissSize, m.height - (borderW * 2))
 
-    self.dismissCol:SetSize(width, height)
-    self.dismissCol:SetPosition(m.width - borderW - width, borderW)
-    self.dismissLabel:SetSize(width, height)
+    self.dismissCol:SetSize(size, size)
+    self.dismissCol:SetPosition(m.width - borderW - size, borderW)
+    self.dismissLabel:SetSize(size, size)
 
 end
 
@@ -704,12 +699,12 @@ function PotatoTooltip:ApplySettings()
     self.moralePct:SetSize(40, m.moraleHeight)
     self.moralePct:SetPosition(m.width - 11 - 40, m.moraleTop)
 
-    -- the labels whose colour never changes with card state still follow the card background, since
-    -- a light one needs dark text
+    -- the "s" after the seconds never changes with card state, but it does sit on the card, so a
+    -- light background still has to darken it. the dismiss "x" doesn't — it sits on its own red
+    -- square, whatever the card is.
     self.ccSuffix:SetForeColor(_G.Theme.Ink(_G.Theme.color.textMuted))
-    self.dismissLabel:SetForeColor(_G.Theme.Ink(_G.Theme.color.dismissGlyph))
 
-    -- the dismiss column is positioned in ApplyState, since its inset tracks the border width.
+    -- the dismiss button is positioned in ApplyState, since its inset tracks the border width.
     -- switching it off while a card is hovered has to take effect now rather than on the next
     -- mouse leave.
     if _G.Settings.show_dismiss == false then

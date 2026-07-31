@@ -21,7 +21,7 @@ A complete visual redesign of the plugin.
 - Cards are a fixed height. Turning the CC timer or morale bar on no longer makes your HUD grow or shift.
 - A small line under the name says whether the target is an NPC, a fellowship member or an object, and reads "YOUR TARGET" when it is your current target.
 - Defeated targets are struck through and marked "DEFEATED" rather than only dimmed.
-- The close button is a narrow strip on the right edge that appears when you hover over a card, so it no longer sits over the name.
+- The close button is a small red square in the top-right corner that appears when you hover over a card, so it no longer sits over the name, the timer or the morale figure.
 - The drag handle is a small strip above the trackers, and can be hidden once you are happy with the position.
 - Trackers sit closer together by default.
 - Morale that has stopped updating fades to grey after five seconds and stays there, instead of fading gradually over fifteen.

@@ -96,10 +96,12 @@ _G.Theme.color = {
     goldBand    = Color(0.220, 0.161, 0.051),  -- #38290d
     goldText    = Color(0.902, 0.749, 0.349),  -- #e6bf59
 
-    -- hover dismiss column. translucent so the card reads through it — the alpha rides on the
-    -- fill only, so the glyph over it stays crisp
-    dismiss      = Color(0.88, 0.169, 0.184, 0.239), -- #2b2f3d at 88%  column back
-    dismissGlyph = Color(0.812, 0.827, 0.898),       -- #cfd3e5         the "x", also DRAG
+    -- hover dismiss button, a square in the top-right corner. fully opaque: it covers the corner
+    -- outright rather than showing the card through it, and it is small enough that the seconds and
+    -- the morale figure along the bottom edge stay readable while the mouse is over the card
+    dismissFill  = Color(0.741, 0.235, 0.267),       -- #bd3c44         the square
+    dismissMark  = Color(0.976, 0.925, 0.929),       -- #f9eced         the "x" on it
+    dismissGlyph = Color(0.812, 0.827, 0.898),       -- #cfd3e5         DRAG, stepper glyphs
 
     -- alternate swatches offered in the Appearance pane
     swatchTeal  = Color(0.239, 0.498, 0.588),  -- #3d7f96
@@ -210,7 +212,7 @@ _G.Theme.metrics = {
     railTargetWidth = 5,
     borderWidth     = 1,   -- 2 when the card is your target
     borderTarget    = 2,
-    dismissWidth    = 22,  -- hover-only column on the right
+    dismissSize     = 16,  -- hover-only square in the top-right corner
     cardGap         = 2,   -- was 5
     barGap          = 1,   -- between the morale and CC bars
 
