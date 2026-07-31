@@ -33,7 +33,7 @@
             if sk == nil or sk.enabled then
                 local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                 if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1090541222, sk and sk.duration or 30, targetName)
+                    Potato:DisplayDuration(1090541222, sk and sk.duration or 30, targetName, "Blinding Flash")
                     return
                 end
             end
@@ -45,7 +45,7 @@
             if sk == nil or sk.enabled then
                 local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                 if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1090541257, sk and sk.duration or 30, targetName)
+                    Potato:DisplayDuration(1090541257, sk and sk.duration or 30, targetName, "Riddle")
                     return
                 end
             end
@@ -57,7 +57,7 @@
             if sk == nil or sk.enabled then
                 local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                 if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1091459007, sk and sk.duration or 35, targetName)
+                    Potato:DisplayDuration(1091459007, sk and sk.duration or 35, targetName, "Distracting Shot")
                     return
                 end
             end
@@ -69,7 +69,7 @@
             if sk == nil or sk.enabled then
                 local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                 if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1092830905, sk and sk.duration or 25, targetName)
+                    Potato:DisplayDuration(1092830905, sk and sk.duration or 25, targetName, "Thrum of the Sea")
                     return
                 end
             end
@@ -81,7 +81,7 @@
             if sk == nil or sk.enabled then
                 local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                 if updateType == 17 and targetName ~= nil then
-                    Potato:DisplayDuration(1090553882, sk and sk.duration or 15, targetName)
+                    Potato:DisplayDuration(1090553882, sk and sk.duration or 15, targetName, "Sign of Power: Righteousness")
                     return
                 end
             end
@@ -95,7 +95,7 @@
                     if string.find(args.Message, "hit</rgb> with " .. sk.name .. " on ") then
                         local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
                         if updateType == 1 and targetName ~= nil then
-                            Potato:DisplayDuration(sk.icon or 1090541222, sk.duration, targetName)
+                            Potato:DisplayDuration(sk.icon or 1090541222, sk.duration, targetName, sk.name)
                             return
                         end
                     end

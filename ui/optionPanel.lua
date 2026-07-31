@@ -1,873 +1,1139 @@
 
--- Section header band: dark amber background, gold outlined title
-local HEADER_H  = 24
-local HEADER_BG = Turbine.UI.Color(0.22, 0.16, 0.05)
-local HEADER_FG = Turbine.UI.Color(0.9, 0.75, 0.35)
-
-local function makeHeader(parent, y, text)
-    local bg = Turbine.UI.Control()
-    bg:SetParent(parent)
-    bg:SetPosition(0, y)
-    bg:SetSize(560, HEADER_H)
-    bg:SetBackColor(HEADER_BG)
-
-    local lbl = Turbine.UI.Label()
-    lbl:SetParent(bg)
-    lbl:SetPosition(10, 0)
-    lbl:SetSize(540, HEADER_H)
-    lbl:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    lbl:SetForeColor(HEADER_FG)
-    lbl:SetFontStyle(Turbine.UI.FontStyle.Outline)
-    lbl:SetText(text)
-end
-
+-- OptionPanel
+--
+-- the settings panel shown in the plugin manager
+--
+-- a 150px tab rail and five panes, each sized to fit without scrolling. replaces the old
+-- 600x1280 single scroll with its four separate apply buttons.
+--
+-- apply semantics, consistent across every pane: toggles commit immediately because they're cheap
+-- and reversible; anything numeric or textual commits on the pane's Apply button.
 ---------------------------------------------------------------------------------------------------
+
+import "Turbine.UI"
+import "Turbine.UI.Lotro"
+
+import "Potato.ui.theme"
+import "Potato.ui.widgets"
+import "Potato.ui.keys"
+
 
 OptionPanel = class ( Turbine.UI.Control )
 
-function OptionPanel:Constructor()
-    Turbine.UI.Control.Constructor(self)
-    self:SetSize(600, 1280)
-
-    local top = 0
-    local INDENT = 50
-    local BODY_FONT = Turbine.UI.Lotro.Font.Verdana14
-    local MUTED = Turbine.UI.Color(0.5, 0.5, 0.5)
-    local BOUND = Turbine.UI.Color(0.6, 0.8, 0.6)
-
-    ---------------------------------------------------------------------------------------------------
-    -- POSITION
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Position")
-    top = top + HEADER_H + 6
-
-    self.moveCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.moveCheckbox:SetParent(self)
-    self.moveCheckbox:SetWidth(400)
-    self.moveCheckbox:SetPosition(INDENT, top)
-    self.moveCheckbox:SetFont(BODY_FONT)
-    self.moveCheckbox:SetText(" show drag handle")
-    self.moveCheckbox.CheckedChanged = function(sender, args)
-        _G.ShowAnchor(self.moveCheckbox:IsChecked())
-    end
-
-    top = top + 40 + 10
-
-    ---------------------------------------------------------------------------------------------------
-    -- LAYOUT
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Layout")
-    top = top + HEADER_H + 8
-
-    local COL2 = INDENT + 160
-
-    self.noSortCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.noSortCheckbox:SetParent(self)
-    self.noSortCheckbox:SetWidth(150)
-    self.noSortCheckbox:SetPosition(INDENT, top)
-    self.noSortCheckbox:SetFont(BODY_FONT)
-    self.noSortCheckbox:SetText(" no sort")
-    self.noSortCheckbox:SetChecked(_G.Settings.sort == 0)
-    self.noSortCheckbox.CheckedChanged = function(sender, args)
-        if self.noSortCheckbox:IsChecked() then
-            _G.Settings.sort = 0
-            _G.SaveSettings()
-            self:UpdateSort()
-        end
-    end
-
-    self.sortByNameCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.sortByNameCheckbox:SetParent(self)
-    self.sortByNameCheckbox:SetWidth(150)
-    self.sortByNameCheckbox:SetPosition(COL2, top)
-    self.sortByNameCheckbox:SetFont(BODY_FONT)
-    self.sortByNameCheckbox:SetText(" sort by name")
-    self.sortByNameCheckbox:SetChecked(_G.Settings.sort == 1)
-    self.sortByNameCheckbox.CheckedChanged = function(sender, args)
-        if self.sortByNameCheckbox:IsChecked() then
-            _G.Settings.sort = 1
-            _G.SaveSettings()
-            self:UpdateSort()
-        end
-    end
-
-    top = top + 20 + 12
-
-    self.horizontalCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.horizontalCheckbox:SetParent(self)
-    self.horizontalCheckbox:SetSize(150, 20)
-    self.horizontalCheckbox:SetPosition(INDENT, top)
-    self.horizontalCheckbox:SetFont(BODY_FONT)
-    self.horizontalCheckbox:SetText(" fill horizontal")
-    self.horizontalCheckbox:SetChecked(_G.Settings.horizontal)
-    self.horizontalCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.horizontal = self.horizontalCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    self.reverseFillCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.reverseFillCheckbox:SetParent(self)
-    self.reverseFillCheckbox:SetSize(150, 20)
-    self.reverseFillCheckbox:SetPosition(COL2, top)
-    self.reverseFillCheckbox:SetFont(BODY_FONT)
-    self.reverseFillCheckbox:SetText(" reverse fill")
-    self.reverseFillCheckbox:SetChecked(_G.Settings.reverseFill)
-    self.reverseFillCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.reverseFill = self.reverseFillCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    top = top + 20 + 14
-
-    ---------------------------------------------------------------------------------------------------
-    -- TOOLTIP SIZE
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Tooltip size")
-    top = top + HEADER_H + 10
-
-    -- row: [200] width  [90] height  [5] spacing  [5] max
-    self.widthTextbox = Turbine.UI.Lotro.TextBox()
-    self.widthTextbox:SetParent(self)
-    self.widthTextbox:SetPosition(INDENT, top)
-    self.widthTextbox:SetSize(44, 20)
-    self.widthTextbox:SetFont(BODY_FONT)
-    self.widthTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.widthTextbox:SetText(_G.Settings.width)
-
-    self.widthLabel = Turbine.UI.Label()
-    self.widthLabel:SetParent(self)
-    self.widthLabel:SetPosition(INDENT + 48, top)
-    self.widthLabel:SetSize(46, 20)
-    self.widthLabel:SetFont(BODY_FONT)
-    self.widthLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.widthLabel:SetForeColor(MUTED)
-    self.widthLabel:SetText("width")
-
-    self.heightTextbox = Turbine.UI.Lotro.TextBox()
-    self.heightTextbox:SetParent(self)
-    self.heightTextbox:SetPosition(INDENT + 100, top)
-    self.heightTextbox:SetSize(44, 20)
-    self.heightTextbox:SetFont(BODY_FONT)
-    self.heightTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.heightTextbox:SetText(_G.Settings.tooltip_height)
-
-    self.heightLabel = Turbine.UI.Label()
-    self.heightLabel:SetParent(self)
-    self.heightLabel:SetPosition(INDENT + 148, top)
-    self.heightLabel:SetSize(46, 20)
-    self.heightLabel:SetFont(BODY_FONT)
-    self.heightLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.heightLabel:SetForeColor(MUTED)
-    self.heightLabel:SetText("height")
-
-    self.spacingTextbox = Turbine.UI.Lotro.TextBox()
-    self.spacingTextbox:SetParent(self)
-    self.spacingTextbox:SetPosition(INDENT + 200, top)
-    self.spacingTextbox:SetSize(34, 20)
-    self.spacingTextbox:SetFont(BODY_FONT)
-    self.spacingTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.spacingTextbox:SetText(_G.Settings.tooltip_spacing)
-
-    self.spacingLabel = Turbine.UI.Label()
-    self.spacingLabel:SetParent(self)
-    self.spacingLabel:SetPosition(INDENT + 238, top)
-    self.spacingLabel:SetSize(52, 20)
-    self.spacingLabel:SetFont(BODY_FONT)
-    self.spacingLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.spacingLabel:SetForeColor(MUTED)
-    self.spacingLabel:SetText("spacing")
-
-    self.toolTipCountTextbox = Turbine.UI.Lotro.TextBox()
-    self.toolTipCountTextbox:SetParent(self)
-    self.toolTipCountTextbox:SetPosition(INDENT + 300, top)
-    self.toolTipCountTextbox:SetSize(34, 20)
-    self.toolTipCountTextbox:SetFont(BODY_FONT)
-    self.toolTipCountTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.toolTipCountTextbox:SetText(_G.Settings.max_tooltip_count)
-
-    self.toolTipCountLabel = Turbine.UI.Label()
-    self.toolTipCountLabel:SetParent(self)
-    self.toolTipCountLabel:SetPosition(INDENT + 338, top - 4)
-    self.toolTipCountLabel:SetSize(80, 30)
-    self.toolTipCountLabel:SetFont(BODY_FONT)
-    self.toolTipCountLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.toolTipCountLabel:SetForeColor(MUTED)
-    self.toolTipCountLabel:SetText("max trackers")
-
-    top = top + 20 + 8
-
-    self.updateSizeButton = Turbine.UI.Lotro.Button()
-    self.updateSizeButton:SetParent(self)
-    self.updateSizeButton:SetText("apply size")
-    self.updateSizeButton:SetWidth(90)
-    self.updateSizeButton:SetPosition(INDENT, top)
-    self.updateSizeButton.MouseClick = function(sender, args)
-        _G.Settings.width             = tonumber(self.widthTextbox:GetText())          or _G.Settings.width
-        _G.Settings.tooltip_height    = tonumber(self.heightTextbox:GetText())         or _G.Settings.tooltip_height
-        _G.Settings.max_tooltip_count = tonumber(self.toolTipCountTextbox:GetText())   or _G.Settings.max_tooltip_count
-        _G.Settings.tooltip_spacing   = tonumber(self.spacingTextbox:GetText())        or _G.Settings.tooltip_spacing
-
-        Potato:ApplySettings()
-        _G.SaveSettings()
-
-        self.widthTextbox:SetText(_G.Settings.width)
-        self.heightTextbox:SetText(_G.Settings.tooltip_height)
-        self.toolTipCountTextbox:SetText(_G.Settings.max_tooltip_count)
-        self.spacingTextbox:SetText(_G.Settings.tooltip_spacing)
-    end
-
-    self.updateSizeHint = Turbine.UI.Label()
-    self.updateSizeHint:SetParent(self)
-    self.updateSizeHint:SetPosition(INDENT + 96, top + 2)
-    self.updateSizeHint:SetSize(200, 18)
-    self.updateSizeHint:SetFont(BODY_FONT)
-    self.updateSizeHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.updateSizeHint:SetForeColor(MUTED)
-    self.updateSizeHint:SetText("changes apply on click")
-
-    top = top + 20 + 14
-
-    ---------------------------------------------------------------------------------------------------
-    -- KEYBINDINGS
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Keybindings")
-    top = top + HEADER_H + 14
-
-    self.addButton = Turbine.UI.Lotro.Button()
-    self.addButton:SetParent(self)
-    self.addButton:SetText("Set key: add tracker")
-    self.addButton:SetWidth(200)
-    self.addButton:SetPosition(INDENT, top)
-    self.addButton.MouseClick = function(sender, args)
-        AddButtonWindow = GetKeybindingWindow()
-        AddButtonWindow.KeyDown = function(s, a)
-            if AddButtonWindow.assignedAlready == true then return end
-            if a.Action == 92 or a.Action == 19 then return end
-            if a.Action == 145 then
-                AddButtonWindow:SetVisible(false)
-                AddButtonWindow:Close()
-                return
-            end
-            _G.Settings.keybinding_add.shift  = a.Shift
-            _G.Settings.keybinding_add.alt    = a.Alt
-            _G.Settings.keybinding_add.ctrl   = a.Control
-            _G.Settings.keybinding_add.action = a.Action
-            _G.SaveSettings()
-            self.addKeybindingLabel:SetText("bound to  " .. FormatKeybinding(_G.Settings.keybinding_add))
-            AddButtonWindow.assignedAlready = true
-            AddButtonWindow:SetVisible(false)
-            AddButtonWindow:Close()
-        end
-    end
-
-    top = top + 20 + 4
-
-    self.addKeybindingLabel = Turbine.UI.Label()
-    self.addKeybindingLabel:SetParent(self)
-    self.addKeybindingLabel:SetPosition(INDENT + 4, top)
-    self.addKeybindingLabel:SetSize(350, 18)
-    self.addKeybindingLabel:SetFont(BODY_FONT)
-    self.addKeybindingLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.addKeybindingLabel:SetForeColor(BOUND)
-    self.addKeybindingLabel:SetText("bound to  " .. FormatKeybinding(_G.Settings.keybinding_add))
-
-    top = top + 18 + 10
-
-    self.clearButton = Turbine.UI.Lotro.Button()
-    self.clearButton:SetParent(self)
-    self.clearButton:SetText("Set key: clear trackers")
-    self.clearButton:SetWidth(200)
-    self.clearButton:SetPosition(INDENT, top)
-    self.clearButton.MouseClick = function(sender, args)
-        ClearButtonWindow = GetKeybindingWindow()
-        ClearButtonWindow.KeyDown = function(s, a)
-            if ClearButtonWindow.assignedAlready == true then return end
-            if a.Action == 92 or a.Action == 19 then return end
-            if a.Action == 145 then
-                ClearButtonWindow:SetVisible(false)
-                ClearButtonWindow:Close()
-                return
-            end
-            _G.Settings.keybinding_clear.shift  = a.Shift
-            _G.Settings.keybinding_clear.alt    = a.Alt
-            _G.Settings.keybinding_clear.ctrl   = a.Control
-            _G.Settings.keybinding_clear.action = a.Action
-            _G.SaveSettings()
-            self.clearKeybindingLabel:SetText("bound to  " .. FormatKeybinding(_G.Settings.keybinding_clear))
-            ClearButtonWindow.assignedAlready = true
-            ClearButtonWindow:SetVisible(false)
-            ClearButtonWindow:Close()
-        end
-    end
-
-    top = top + 20 + 4
-
-    self.clearKeybindingLabel = Turbine.UI.Label()
-    self.clearKeybindingLabel:SetParent(self)
-    self.clearKeybindingLabel:SetPosition(INDENT + 4, top)
-    self.clearKeybindingLabel:SetSize(350, 18)
-    self.clearKeybindingLabel:SetFont(BODY_FONT)
-    self.clearKeybindingLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.clearKeybindingLabel:SetForeColor(BOUND)
-    self.clearKeybindingLabel:SetText("bound to  " .. FormatKeybinding(_G.Settings.keybinding_clear))
-
-    top = top + 18 + 12
-
-    self.clearCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.clearCheckbox:SetParent(self)
-    self.clearCheckbox:SetSize(200, 20)
-    self.clearCheckbox:SetPosition(INDENT, top)
-    self.clearCheckbox:SetFont(BODY_FONT)
-    self.clearCheckbox:SetText(" enable clear key")
-    self.clearCheckbox:SetChecked(_G.Settings.use_clear_keybinding)
-    self.clearCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.use_clear_keybinding = self.clearCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    self.onlyDeadCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.onlyDeadCheckbox:SetParent(self)
-    self.onlyDeadCheckbox:SetSize(220, 20)
-    self.onlyDeadCheckbox:SetPosition(INDENT + 180, top)
-    self.onlyDeadCheckbox:SetFont(BODY_FONT)
-    self.onlyDeadCheckbox:SetText(" only clear defeated")
-    self.onlyDeadCheckbox:SetChecked(_G.Settings.only_clear_dead)
-    self.onlyDeadCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.only_clear_dead = self.onlyDeadCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    top = top + 20 + 14
-
-    ---------------------------------------------------------------------------------------------------
-    -- COMBAT TRACKING
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Combat tracking")
-    top = top + HEADER_H + 10
-
-    self.highlightDefeatedCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.highlightDefeatedCheckbox:SetParent(self)
-    self.highlightDefeatedCheckbox:SetSize(200, 20)
-    self.highlightDefeatedCheckbox:SetPosition(INDENT, top)
-    self.highlightDefeatedCheckbox:SetFont(BODY_FONT)
-    self.highlightDefeatedCheckbox:SetText(" highlight defeated")
-    self.highlightDefeatedCheckbox:SetChecked(_G.Settings.highlight_defeated)
-    self.highlightDefeatedCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.highlight_defeated = self.highlightDefeatedCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    self.displayMoraleCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.displayMoraleCheckbox:SetParent(self)
-    self.displayMoraleCheckbox:SetSize(200, 20)
-    self.displayMoraleCheckbox:SetPosition(INDENT + 200, top)
-    self.displayMoraleCheckbox:SetFont(BODY_FONT)
-    self.displayMoraleCheckbox:SetText(" show morale bar")
-    self.displayMoraleCheckbox:SetChecked(_G.Settings.display_morale)
-    self.displayMoraleCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.display_morale = self.displayMoraleCheckbox:IsChecked()
-        Potato:ApplySettings()
-        _G.SaveSettings()
-    end
-
-    top = top + 20 + 10
-
-    self.defeatDelayTextbox = Turbine.UI.Lotro.TextBox()
-    self.defeatDelayTextbox:SetParent(self)
-    self.defeatDelayTextbox:SetPosition(INDENT, top)
-    self.defeatDelayTextbox:SetSize(34, 20)
-    self.defeatDelayTextbox:SetFont(BODY_FONT)
-    self.defeatDelayTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
-
-    self.defeatDelayLabel = Turbine.UI.Label()
-    self.defeatDelayLabel:SetParent(self)
-    self.defeatDelayLabel:SetPosition(INDENT + 38, top)
-    self.defeatDelayLabel:SetSize(220, 20)
-    self.defeatDelayLabel:SetFont(BODY_FONT)
-    self.defeatDelayLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.defeatDelayLabel:SetForeColor(MUTED)
-    self.defeatDelayLabel:SetText("s auto-remove defeated (0=off)")
-
-    top = top + 20 + 8
-
-    self.updateCombatButton = Turbine.UI.Lotro.Button()
-    self.updateCombatButton:SetParent(self)
-    self.updateCombatButton:SetText("apply")
-    self.updateCombatButton:SetWidth(70)
-    self.updateCombatButton:SetPosition(INDENT, top)
-    self.updateCombatButton.MouseClick = function(sender, args)
-        _G.Settings.defeat_auto_remove_delay = tonumber(self.defeatDelayTextbox:GetText()) or _G.Settings.defeat_auto_remove_delay
-        Potato:ApplySettings()
-        _G.SaveSettings()
-        self.defeatDelayTextbox:SetText(_G.Settings.defeat_auto_remove_delay)
-    end
-
-    local updateCombatHint = Turbine.UI.Label()
-    updateCombatHint:SetParent(self)
-    updateCombatHint:SetPosition(INDENT + 76, top + 2)
-    updateCombatHint:SetSize(200, 18)
-    updateCombatHint:SetFont(BODY_FONT)
-    updateCombatHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    updateCombatHint:SetForeColor(MUTED)
-    updateCombatHint:SetText("changes apply on click")
-
-    top = top + 20 + 14
-
-    ---------------------------------------------------------------------------------------------------
-    -- CC TIMERS
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "CC Timers")
-    top = top + HEADER_H + 10
-
-    self.displayDurationsCheckbox = Turbine.UI.Lotro.CheckBox()
-    self.displayDurationsCheckbox:SetParent(self)
-    self.displayDurationsCheckbox:SetSize(200, 20)
-    self.displayDurationsCheckbox:SetPosition(INDENT, top)
-    self.displayDurationsCheckbox:SetFont(BODY_FONT)
-    self.displayDurationsCheckbox:SetText(" show CC timers")
-    self.displayDurationsCheckbox:SetChecked(_G.Settings.display_durations)
-    self.displayDurationsCheckbox.CheckedChanged = function(sender, args)
-        _G.Settings.display_durations = self.displayDurationsCheckbox:IsChecked()
-        _G.SaveSettings()
-    end
-
-    top = top + 20 + 10
-
-    self.barHeightTextbox = Turbine.UI.Lotro.TextBox()
-    self.barHeightTextbox:SetParent(self)
-    self.barHeightTextbox:SetPosition(INDENT, top)
-    self.barHeightTextbox:SetSize(34, 20)
-    self.barHeightTextbox:SetFont(BODY_FONT)
-    self.barHeightTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.barHeightTextbox:SetText(_G.Settings.duration_bar_height)
-
-    self.barHeightLabel = Turbine.UI.Label()
-    self.barHeightLabel:SetParent(self)
-    self.barHeightLabel:SetPosition(INDENT + 38, top)
-    self.barHeightLabel:SetSize(120, 20)
-    self.barHeightLabel:SetFont(BODY_FONT)
-    self.barHeightLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.barHeightLabel:SetForeColor(MUTED)
-    self.barHeightLabel:SetText("px bar height")
-
-    self.ccThresholdTextbox = Turbine.UI.Lotro.TextBox()
-    self.ccThresholdTextbox:SetParent(self)
-    self.ccThresholdTextbox:SetPosition(INDENT + 180, top)
-    self.ccThresholdTextbox:SetSize(34, 20)
-    self.ccThresholdTextbox:SetFont(BODY_FONT)
-    self.ccThresholdTextbox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.ccThresholdTextbox:SetText(_G.Settings.cc_warning_threshold)
-
-    self.ccThresholdLabel = Turbine.UI.Label()
-    self.ccThresholdLabel:SetParent(self)
-    self.ccThresholdLabel:SetPosition(INDENT + 218, top)
-    self.ccThresholdLabel:SetSize(220, 20)
-    self.ccThresholdLabel:SetFont(BODY_FONT)
-    self.ccThresholdLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    self.ccThresholdLabel:SetForeColor(MUTED)
-    self.ccThresholdLabel:SetText("s CC warning (bar turns red)")
-
-    top = top + 20 + 8
-
-    self.updateCCButton = Turbine.UI.Lotro.Button()
-    self.updateCCButton:SetParent(self)
-    self.updateCCButton:SetText("apply")
-    self.updateCCButton:SetWidth(70)
-    self.updateCCButton:SetPosition(INDENT, top)
-    self.updateCCButton.MouseClick = function(sender, args)
-        _G.Settings.cc_warning_threshold = tonumber(self.ccThresholdTextbox:GetText()) or _G.Settings.cc_warning_threshold
-        _G.Settings.duration_bar_height   = tonumber(self.barHeightTextbox:GetText())   or _G.Settings.duration_bar_height
-        Potato:ApplySettings()
-        _G.SaveSettings()
-        self.ccThresholdTextbox:SetText(_G.Settings.cc_warning_threshold)
-        self.barHeightTextbox:SetText(_G.Settings.duration_bar_height)
-    end
-
-    local updateCCHint = Turbine.UI.Label()
-    updateCCHint:SetParent(self)
-    updateCCHint:SetPosition(INDENT + 76, top + 2)
-    updateCCHint:SetSize(200, 18)
-    updateCCHint:SetFont(BODY_FONT)
-    updateCCHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    updateCCHint:SetForeColor(MUTED)
-    updateCCHint:SetText("changes apply on click")
-
-    top = top + 20 + 10
-
-    -- per skill sub-section
-    local perSkillLabel = Turbine.UI.Label()
-    perSkillLabel:SetParent(self)
-    perSkillLabel:SetPosition(INDENT, top)
-    perSkillLabel:SetSize(400, 16)
-    perSkillLabel:SetFont(BODY_FONT)
-    perSkillLabel:SetForeColor(MUTED)
-    perSkillLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    perSkillLabel:SetText("per skill:")
-
-    top = top + 16 + 8
-
-    local CC_LABEL_W = 270
-    local CC_DUR_W   = 44
-
-    local ccSkillDefs = {
-        { key = "blinding_flash",    label = " Blinding Flash (LM)" },
-        { key = "riddle",            label = " Riddle (Burg)" },
-        { key = "distracting_shot",  label = " Distracting Shot (Hunter)" },
-        { key = "thrum_of_the_sea",  label = " Thrum of the Sea (Mariner)" },
-        { key = "sop_righteousness", label = " SoP: Righteousness (LM)" },
-    }
-
-    self.ccSkillCheckboxes = {}
-    self.ccSkillTextboxes  = {}
-
-    for _, skill in ipairs(ccSkillDefs) do
-        local cb = Turbine.UI.Lotro.CheckBox()
-        cb:SetParent(self)
-        cb:SetPosition(INDENT, top)
-        cb:SetSize(CC_LABEL_W, 20)
-        cb:SetFont(BODY_FONT)
-        cb:SetText(skill.label)
-        cb:SetChecked(_G.Settings.cc_skills[skill.key].enabled)
-        local skillKey = skill.key
-        cb.CheckedChanged = function(sender, args)
-            _G.Settings.cc_skills[skillKey].enabled = cb:IsChecked()
-            _G.SaveSettings()
-        end
-        self.ccSkillCheckboxes[skill.key] = cb
-
-        local tb = Turbine.UI.Lotro.TextBox()
-        tb:SetParent(self)
-        tb:SetPosition(INDENT + CC_LABEL_W + 8, top)
-        tb:SetSize(CC_DUR_W, 20)
-        tb:SetFont(BODY_FONT)
-        tb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        tb:SetText(_G.Settings.cc_skills[skill.key].duration)
-        self.ccSkillTextboxes[skill.key] = tb
-
-        local sLbl = Turbine.UI.Label()
-        sLbl:SetParent(self)
-        sLbl:SetPosition(INDENT + CC_LABEL_W + CC_DUR_W + 12, top)
-        sLbl:SetSize(20, 20)
-        sLbl:SetFont(BODY_FONT)
-        sLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        sLbl:SetForeColor(MUTED)
-        sLbl:SetText("s")
-
-        top = top + 20 + 8
-    end
-
-    top = top + 4
-
-    self.applySkillsButton = Turbine.UI.Lotro.Button()
-    self.applySkillsButton:SetParent(self)
-    self.applySkillsButton:SetText("apply")
-    self.applySkillsButton:SetWidth(70)
-    self.applySkillsButton:SetPosition(INDENT, top)
-    self.applySkillsButton.MouseClick = function(sender, args)
-        for _, skill in ipairs(ccSkillDefs) do
-            local dur = tonumber(self.ccSkillTextboxes[skill.key]:GetText())
-            if dur then _G.Settings.cc_skills[skill.key].duration = dur end
-            self.ccSkillTextboxes[skill.key]:SetText(_G.Settings.cc_skills[skill.key].duration)
-        end
-        _G.SaveSettings()
-    end
-
-    local applySkillsHint = Turbine.UI.Label()
-    applySkillsHint:SetParent(self)
-    applySkillsHint:SetPosition(INDENT + 76, top + 2)
-    applySkillsHint:SetSize(240, 18)
-    applySkillsHint:SetFont(BODY_FONT)
-    applySkillsHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    applySkillsHint:SetForeColor(MUTED)
-    applySkillsHint:SetText("durations apply on click, enable/disable is immediate")
-
-    top = top + 20 + 10
-
-    -- custom skills sub-section
-    local customSkillLabel = Turbine.UI.Label()
-    customSkillLabel:SetParent(self)
-    customSkillLabel:SetPosition(INDENT, top)
-    customSkillLabel:SetSize(400, 16)
-    customSkillLabel:SetFont(BODY_FONT)
-    customSkillLabel:SetForeColor(MUTED)
-    customSkillLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    customSkillLabel:SetText("custom skills:")
-
-    top = top + 16 + 8
-
-    local CUSTOM_CB_W   = 20
-    local CUSTOM_NAME_W = 190
-    local CUSTOM_DUR_W  = 44
-
-    self.ccCustomCheckboxes = {}
-    self.ccCustomNameBoxes  = {}
-    self.ccCustomDurBoxes   = {}
-    self.ccCustomIconBoxes  = {}
-
-    for i = 1, 5 do
-        local sk = _G.Settings.cc_custom_skills[i]
-
-        local cb = Turbine.UI.Lotro.CheckBox()
-        cb:SetParent(self)
-        cb:SetPosition(INDENT, top)
-        cb:SetSize(CUSTOM_CB_W, 20)
-        cb:SetText("")
-        cb:SetChecked(sk.enabled)
-        local idx = i
-        cb.CheckedChanged = function(sender, args)
-            _G.Settings.cc_custom_skills[idx].enabled = cb:IsChecked()
-            _G.SaveSettings()
-        end
-        self.ccCustomCheckboxes[i] = cb
-
-        local nameTb = Turbine.UI.Lotro.TextBox()
-        nameTb:SetParent(self)
-        nameTb:SetPosition(INDENT + CUSTOM_CB_W + 4, top)
-        nameTb:SetSize(CUSTOM_NAME_W, 20)
-        nameTb:SetFont(BODY_FONT)
-        nameTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        nameTb:SetText(sk.name)
-        self.ccCustomNameBoxes[i] = nameTb
-
-        local durTb = Turbine.UI.Lotro.TextBox()
-        durTb:SetParent(self)
-        durTb:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6, top)
-        durTb:SetSize(CUSTOM_DUR_W, 20)
-        durTb:SetFont(BODY_FONT)
-        durTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        durTb:SetText(sk.duration)
-        self.ccCustomDurBoxes[i] = durTb
-
-        local sLbl = Turbine.UI.Label()
-        sLbl:SetParent(self)
-        sLbl:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4, top)
-        sLbl:SetSize(16, 20)
-        sLbl:SetFont(BODY_FONT)
-        sLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        sLbl:SetForeColor(MUTED)
-        sLbl:SetText("s")
-
-        local iconLbl = Turbine.UI.Label()
-        iconLbl:SetParent(self)
-        iconLbl:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4 + 16 + 8, top)
-        iconLbl:SetSize(32, 20)
-        iconLbl:SetFont(BODY_FONT)
-        iconLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        iconLbl:SetForeColor(MUTED)
-        iconLbl:SetText("icon:")
-
-        local iconTb = Turbine.UI.Lotro.TextBox()
-        iconTb:SetParent(self)
-        iconTb:SetPosition(INDENT + CUSTOM_CB_W + 4 + CUSTOM_NAME_W + 6 + CUSTOM_DUR_W + 4 + 16 + 8 + 36, top)
-        iconTb:SetSize(100, 20)
-        iconTb:SetFont(BODY_FONT)
-        iconTb:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        iconTb:SetText(sk.icon or 1090541222)
-        self.ccCustomIconBoxes[i] = iconTb
-
-        top = top + 20 + 8
-    end
-
-    top = top + 4
-
-    self.applyCustomSkillsButton = Turbine.UI.Lotro.Button()
-    self.applyCustomSkillsButton:SetParent(self)
-    self.applyCustomSkillsButton:SetText("apply")
-    self.applyCustomSkillsButton:SetWidth(70)
-    self.applyCustomSkillsButton:SetPosition(INDENT, top)
-    self.applyCustomSkillsButton.MouseClick = function(sender, args)
-        for i = 1, 5 do
-            local name = self.ccCustomNameBoxes[i]:GetText() or ""
-            local dur  = tonumber(self.ccCustomDurBoxes[i]:GetText())
-            local icon = tonumber(self.ccCustomIconBoxes[i]:GetText())
-            _G.Settings.cc_custom_skills[i].name = name
-            if dur  then _G.Settings.cc_custom_skills[i].duration = dur  end
-            if icon then _G.Settings.cc_custom_skills[i].icon     = icon end
-            self.ccCustomDurBoxes[i]:SetText(_G.Settings.cc_custom_skills[i].duration)
-            self.ccCustomIconBoxes[i]:SetText(_G.Settings.cc_custom_skills[i].icon)
-        end
-        _G.SaveSettings()
-    end
-
-    local applyCustomHint = Turbine.UI.Label()
-    applyCustomHint:SetParent(self)
-    applyCustomHint:SetPosition(INDENT + 76, top + 2)
-    applyCustomHint:SetSize(280, 18)
-    applyCustomHint:SetFont(BODY_FONT)
-    applyCustomHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    applyCustomHint:SetForeColor(MUTED)
-    applyCustomHint:SetText("name/duration apply on click, enable/disable is immediate")
-
-    top = top + 20 + 14
-
-    ---------------------------------------------------------------------------------------------------
-    -- APPEARANCE
-    ---------------------------------------------------------------------------------------------------
-    makeHeader(self, top, "Appearance")
-    top = top + HEADER_H + 10
-
-    local COLOR_BOX_W = 34
-    local COLOR_LABEL_W = 80
-    local COLOR_COL_W = COLOR_BOX_W * 3 + 14 + COLOR_LABEL_W
-
-    local function makeColorRow(parentTop, labelText, colorTable)
-        local lbl = Turbine.UI.Label()
-        lbl:SetParent(self)
-        lbl:SetPosition(INDENT, parentTop)
-        lbl:SetSize(COLOR_LABEL_W, 20)
-        lbl:SetFont(BODY_FONT)
-        lbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        lbl:SetForeColor(MUTED)
-        lbl:SetText(labelText)
-
-        local rBox = Turbine.UI.Lotro.TextBox()
-        rBox:SetParent(self)
-        rBox:SetPosition(INDENT + COLOR_LABEL_W, parentTop)
-        rBox:SetSize(COLOR_BOX_W, 20)
-        rBox:SetFont(BODY_FONT)
-        rBox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        rBox:SetText(math.floor(colorTable.r * 255 + 0.5))
-
-        local rLbl = Turbine.UI.Label()
-        rLbl:SetParent(self)
-        rLbl:SetPosition(INDENT + COLOR_LABEL_W + COLOR_BOX_W + 2, parentTop)
-        rLbl:SetSize(14, 20)
-        rLbl:SetFont(BODY_FONT)
-        rLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        rLbl:SetForeColor(MUTED)
-        rLbl:SetText("R")
-
-        local gBox = Turbine.UI.Lotro.TextBox()
-        gBox:SetParent(self)
-        gBox:SetPosition(INDENT + COLOR_LABEL_W + COLOR_BOX_W + 16, parentTop)
-        gBox:SetSize(COLOR_BOX_W, 20)
-        gBox:SetFont(BODY_FONT)
-        gBox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        gBox:SetText(math.floor(colorTable.g * 255 + 0.5))
-
-        local gLbl = Turbine.UI.Label()
-        gLbl:SetParent(self)
-        gLbl:SetPosition(INDENT + COLOR_LABEL_W + COLOR_BOX_W*2 + 18, parentTop)
-        gLbl:SetSize(14, 20)
-        gLbl:SetFont(BODY_FONT)
-        gLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        gLbl:SetForeColor(MUTED)
-        gLbl:SetText("G")
-
-        local bBox = Turbine.UI.Lotro.TextBox()
-        bBox:SetParent(self)
-        bBox:SetPosition(INDENT + COLOR_LABEL_W + COLOR_BOX_W*2 + 32, parentTop)
-        bBox:SetSize(COLOR_BOX_W, 20)
-        bBox:SetFont(BODY_FONT)
-        bBox:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        bBox:SetText(math.floor(colorTable.b * 255 + 0.5))
-
-        local bLbl = Turbine.UI.Label()
-        bLbl:SetParent(self)
-        bLbl:SetPosition(INDENT + COLOR_LABEL_W + COLOR_BOX_W*3 + 34, parentTop)
-        bLbl:SetSize(14, 20)
-        bLbl:SetFont(BODY_FONT)
-        bLbl:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-        bLbl:SetForeColor(MUTED)
-        bLbl:SetText("B")
-
-        return rBox, gBox, bBox
-    end
-
-    local playerR, playerG, playerB = makeColorRow(top, "player color", _G.Settings.color_player)
-    top = top + 20 + 6
-    local npcR, npcG, npcB = makeColorRow(top, "npc color", _G.Settings.color_npc)
-    top = top + 20 + 6
-    local itemR, itemG, itemB = makeColorRow(top, "item color", _G.Settings.color_item)
-    top = top + 20 + 6
-    local targetedR, targetedG, targetedB = makeColorRow(top, "targeted color", _G.Settings.color_targeted)
-    top = top + 20 + 8
-
-    self.applyColorsButton = Turbine.UI.Lotro.Button()
-    self.applyColorsButton:SetParent(self)
-    self.applyColorsButton:SetText("apply colors")
-    self.applyColorsButton:SetWidth(110)
-    self.applyColorsButton:SetPosition(INDENT, top)
-    self.applyColorsButton.MouseClick = function(sender, args)
-        local function parseColorRow(settingKey, tooltipKey, rBox, gBox, bBox)
-            local r = math.max(0, math.min(255, tonumber(rBox:GetText()) or 0)) / 255
-            local g = math.max(0, math.min(255, tonumber(gBox:GetText()) or 0)) / 255
-            local b = math.max(0, math.min(255, tonumber(bBox:GetText()) or 0)) / 255
-            _G.Settings[settingKey]  = {r=r, g=g, b=b}
-            _G.Settings[tooltipKey]  = Turbine.UI.Color(r, g, b)
-            rBox:SetText(math.floor(r * 255 + 0.5))
-            gBox:SetText(math.floor(g * 255 + 0.5))
-            bBox:SetText(math.floor(b * 255 + 0.5))
-        end
-        parseColorRow("color_player",   "tooltip_color_player",   playerR,   playerG,   playerB)
-        parseColorRow("color_npc",      "tooltip_color_npc",      npcR,      npcG,      npcB)
-        parseColorRow("color_item",     "tooltip_color_item",     itemR,     itemG,     itemB)
-        parseColorRow("color_targeted", "tooltip_targeted_color", targetedR, targetedG, targetedB)
-        _G.SaveSettings()
-        Potato:ApplySettings()
-    end
-
-    local applyColorsHint = Turbine.UI.Label()
-    applyColorsHint:SetParent(self)
-    applyColorsHint:SetPosition(INDENT + 116, top + 2)
-    applyColorsHint:SetSize(220, 18)
-    applyColorsHint:SetFont(BODY_FONT)
-    applyColorsHint:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleLeft)
-    applyColorsHint:SetForeColor(MUTED)
-    applyColorsHint:SetText("values 0-255, changes apply on click")
-
+local PANEL_W   = 600
+local PANEL_H   = 470
+local RAIL_W    = 150
+local PANE_W    = PANEL_W - RAIL_W
+local PAD_X     = 20
+local PAD_TOP   = 16
+local FOOT_H    = 50
+local CONTENT_H = PANEL_H - FOOT_H
+local BODY_W    = PANE_W - (PAD_X * 2)
+
+local TABS = { "Layout", "Keybindings", "Combat", "CC timers", "Appearance" }
+
+-- a CC row and the number of custom ones that fit above the footer. the pane doesn't scroll, so the
+-- add button stops offering new slots once the space is used up.
+local CC_ROW_H     = 26
+local CC_MAX_CUSTOM = 5
+
+-- the exact-colour editor on the Appearance pane, which opens over the space between the swatch
+-- rows and the previews
+local EXACT_TOP = 170
+local EXACT_H   = 102
+
+local function SettingColor(t)
+    if t == nil then return _G.Theme.color.greyRail end
+    return Turbine.UI.Color(t.r, t.g, t.b)
 end
 
 ---------------------------------------------------------------------------------------------------
 
-function OptionPanel:UpdateSort()
-    self.noSortCheckbox:SetChecked(_G.Settings.sort == 0)
-    self.sortByNameCheckbox:SetChecked(_G.Settings.sort == 1)
+function OptionPanel:Constructor()
+    Turbine.UI.Control.Constructor(self)
+
+    self:SetSize(PANEL_W, PANEL_H)
+    self:SetBackColor(_G.Theme.color.ground)
+
+    self.panes = {}
+    self.tabs = {}
+    self.previews = {}
+
+    self:BuildRail()
+
+    self:BuildLayoutPane()
+    self:BuildKeybindingsPane()
+    self:BuildCombatPane()
+    self:BuildCCPane()
+    self:BuildAppearancePane()
+
+    self:SelectTab(1)
+
 end
 
-function GetKeybindingWindow()
-    local screenWidth, screenHeight = Turbine.UI.Display:GetSize()
+---------------------------------------------------------------------------------------------------
+-- tab rail
 
-    local window = Turbine.UI.Window()
-    window:SetSize(screenWidth, screenHeight)
-    window:SetBackColor(Turbine.UI.Color.Black)
-    window:SetOpacity(0.5)
-    window:SetMouseVisible(false)
-    window:SetWantsKeyEvents(true)
-    window:SetZOrder(9998)
-    window.assignedAlready = false
+function OptionPanel:BuildRail()
 
-    local info = Turbine.UI.Lotro.GoldWindow()
-    info:SetParent(window)
-    info:SetSize(300, 100)
-    info:SetText("Potato keybinding")
-    info:SetPosition(screenWidth/2 - 150, screenHeight/2 - 50)
-    function info:Closing()
-        window.assignedAlready = true
-        window:SetVisible(false)
-        window:Close()
+    local color = _G.Theme.color
+
+    local rail = Turbine.UI.Control()
+    rail:SetParent(self)
+    rail:SetPosition(0, 0)
+    rail:SetSize(RAIL_W, PANEL_H)
+    rail:SetBackColor(color.surfaceSunk)
+
+    _G.Widgets.Rect(rail, RAIL_W - 1, 0, 1, PANEL_H, color.line)
+
+    -- the LotRO gold band, kept as the brand block
+    _G.Widgets.Rect(rail, 0, 8, RAIL_W, 24, color.goldBand)
+    _G.Widgets.Label(
+        rail, 12, 8, RAIL_W - 12, 24, "Potato",
+        _G.Theme.font.band, color.goldText
+    )
+
+    for i, name in ipairs(TABS) do
+
+        local y = 40 + ((i - 1) * _G.Theme.metrics.tabHeight)
+
+        local tab = {}
+        tab.fill = _G.Widgets.Rect(rail, 0, y, RAIL_W - 1, _G.Theme.metrics.tabHeight, color.surfaceSunk)
+        tab.marker = _G.Widgets.Rect(rail, 0, y, 3, _G.Theme.metrics.tabHeight, color.accent)
+        tab.label = _G.Widgets.Label(
+            rail, 12, y, RAIL_W - 24, _G.Theme.metrics.tabHeight, name,
+            _G.Theme.font.body, color.textMuted
+        )
+
+        tab.hit = Turbine.UI.Control()
+        tab.hit:SetParent(rail)
+        tab.hit:SetPosition(0, y)
+        tab.hit:SetSize(RAIL_W - 1, _G.Theme.metrics.tabHeight)
+        tab.hit:SetMouseVisible(true)
+
+        local index = i
+        tab.hit.MouseClick = function(sender, args)
+            self:SelectTab(index)
+        end
+
+        self.tabs[i] = tab
+
     end
 
-    local label = Turbine.UI.Label()
-    label:SetParent(info)
-    label:SetPosition(20, 40)
-    label:SetSize(260, 50)
-    label:SetFont(Turbine.UI.Lotro.Font.Verdana16)
-    label:SetText("press the new key, or esc to cancel.")
+    -- rail footer
+    local footTop = PANEL_H - 46
+    _G.Widgets.Rect(rail, 0, footTop, RAIL_W - 1, 1, color.line)
+    _G.Widgets.Label(
+        rail, 12, footTop + 8, RAIL_W - 20, 30,
+        "Saved per character",
+        _G.Theme.font.help, color.textQuiet,
+        Turbine.UI.ContentAlignment.TopLeft
+    )
+    _G.Widgets.Label(
+        rail, 12, footTop + 22, RAIL_W - 20, 30,
+        "Falls back to account",
+        _G.Theme.font.help, color.textQuiet,
+        Turbine.UI.ContentAlignment.TopLeft
+    )
 
-    info:SetVisible(true)
-    window:SetVisible(true)
-
-    return window
 end
 
-function FormatKeybinding(kb)
-    local parts = {}
-    if kb.shift then parts[#parts+1] = "Shift" end
-    if kb.alt   then parts[#parts+1] = "Alt"   end
-    if kb.ctrl  then parts[#parts+1] = "Ctrl"  end
-    parts[#parts+1] = tostring(kb.action)
-    return table.concat(parts, "+")
+function OptionPanel:SelectTab(index)
+
+    self.selectedTab = index
+
+    for i, tab in ipairs(self.tabs) do
+        local active = (i == index)
+        tab.fill:SetBackColor(active and _G.Theme.color.surface or _G.Theme.color.surfaceSunk)
+        tab.marker:SetVisible(active)
+        tab.label:SetForeColor(active and _G.Theme.color.accentText or _G.Theme.color.textMuted)
+    end
+
+    for i, pane in ipairs(self.panes) do
+        pane:SetVisible(i == index)
+    end
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane scaffolding
+
+function OptionPanel:NewPane(title)
+
+    local pane = Turbine.UI.Control()
+    pane:SetParent(self)
+    pane:SetPosition(RAIL_W, 0)
+    pane:SetSize(PANE_W, PANEL_H)
+    pane:SetVisible(false)
+
+    _G.Widgets.Label(
+        pane, PAD_X, PAD_TOP, BODY_W, 22, title,
+        _G.Theme.font.title, _G.Theme.color.text
+    )
+
+    self.panes[#self.panes + 1] = pane
+
+    return pane
+
+end
+
+function OptionPanel:AddFooter(pane, onApply, onReset)
+
+    _G.Widgets.Rect(pane, 0, CONTENT_H, PANE_W, 1, _G.Theme.color.line)
+
+    _G.Widgets.Button(pane, PAD_X, CONTENT_H + 12, "Apply", function()
+        if onApply then onApply() end
+        _G.SaveSettings()
+        Potato:ApplySettings()
+        self:RefreshPreviews()
+    end)
+
+    _G.Widgets.Button(pane, PAD_X + 90, CONTENT_H + 12, "Reset section", function()
+        if onReset then onReset() end
+        _G.SaveSettings()
+        Potato:ApplySettings()
+        self:RefreshPreviews()
+    end, true)
+
+end
+
+-- toggles commit as soon as they're clicked
+function OptionPanel:Commit()
+
+    _G.SaveSettings()
+    Potato:ApplySettings()
+    self:RefreshPreviews()
+
+end
+
+function OptionPanel:RegisterPreview(widget, state, bars)
+
+    self.previews[#self.previews + 1] = { widget = widget, state = state, bars = bars }
+
+end
+
+-- previews re-render on every change on any pane, so the panel never has to be closed to see the
+-- result of a setting
+function OptionPanel:RefreshPreviews()
+
+    for _, entry in ipairs(self.previews) do
+
+        entry.widget:SetState(entry.state, entry.bars)
+
+        -- the rail carries whatever colors the Appearance pane has been given
+        if entry.state == "player" then
+            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_player))
+        elseif entry.state == "object" then
+            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_item))
+        elseif entry.state == "target" then
+            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_targeted))
+        elseif entry.state == "npc" then
+            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_npc))
+        end
+
+        entry.widget.type:SetVisible(_G.Settings.show_type_line ~= false)
+
+    end
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 1 — Layout
+
+function OptionPanel:BuildLayoutPane()
+
+    local pane = self:NewPane("Layout")
+    local y = PAD_TOP + 34
+
+    self.dragHandleCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Show drag handle", _G.Settings.show_drag_handle,
+        function(value)
+            _G.Settings.show_drag_handle = value
+            self:Commit()
+        end
+    )
+    y = y + 28
+
+    self.dismissCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Show close button on hover", _G.Settings.show_dismiss,
+        function(value)
+            _G.Settings.show_dismiss = value
+            self:Commit()
+        end
+    )
+    y = y + 22
+
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "With it off, clear trackers with the keybinding instead.")
+    y = y + 20
+
+    -- size preset
+    _G.Widgets.Label(pane, PAD_X, y, 70, 22, "Size", _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    local presetIndex = 2
+    if _G.Settings.size_preset == "compact" then presetIndex = 1
+    elseif _G.Settings.size_preset == "custom" then presetIndex = 3 end
+
+    self.sizeSegment = _G.Widgets.Segmented(
+        pane, PAD_X + 70, y, { "Compact", "Comfortable", "Custom" }, presetIndex,
+        function(index)
+            _G.Settings.size_preset = ({ "compact", "comfortable", "custom" })[index]
+            self:UpdateCustomEnabled()
+            self:Commit()
+        end
+    )
+    y = y + 30
+
+    -- direction
+    _G.Widgets.Label(pane, PAD_X, y, 70, 22, "Direction", _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    self.directionSegment = _G.Widgets.Segmented(
+        pane, PAD_X + 70, y, { "Vertical", "Horizontal" }, _G.Settings.horizontal and 2 or 1,
+        function(index)
+            _G.Settings.horizontal = (index == 2)
+            self:Commit()
+        end
+    )
+
+    self.reverseFillCheck = _G.Widgets.Checkbox(
+        pane, PAD_X + 70 + self.directionSegment.width + 16, y + 2, "Fill in reverse",
+        _G.Settings.reverseFill,
+        function(value)
+            _G.Settings.reverseFill = value
+            self:Commit()
+        end
+    )
+    y = y + 30
+
+    -- order
+    _G.Widgets.Label(pane, PAD_X, y, 70, 22, "Order", _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    self.orderSegment = _G.Widgets.Segmented(
+        pane, PAD_X + 70, y, { "As pinned", "By name" },
+        (_G.Settings.sort_order == "name") and 2 or 1,
+        function(index)
+            _G.Settings.sort_order = (index == 2) and "name" or "pinned"
+            self:Commit()
+        end
+    )
+    y = y + 36
+
+    -- custom dimensions
+    local stepX = PAD_X
+    local function dimension(label, value, min, max, unit)
+
+        _G.Widgets.Label(pane, stepX, y, 46, 20, label, _G.Theme.font.help, _G.Theme.color.textQuiet)
+        local stepper = _G.Widgets.Stepper(pane, stepX, y + 16, {
+            value = value, min = min, max = max, unit = unit or "",
+        })
+        stepX = stepX + stepper.width + 14
+
+        return stepper
+
+    end
+
+    self.widthStepper  = dimension("Width",  _G.Settings.width,             80,  600)
+    self.heightStepper = dimension("Height", _G.Settings.tooltip_height,    20,  200)
+    self.gapStepper    = dimension("Gap",    _G.Settings.tooltip_spacing,   0,   40)
+    self.maxStepper    = dimension("Max",    _G.Settings.max_tooltip_count, 1,   20)
+
+    y = y + 44
+
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Width, height and gap only apply to the Custom size.")
+    y = y + 24
+
+    -- live preview
+    _G.Widgets.Divider(pane, PAD_X, y, BODY_W)
+    y = y + 14
+
+    local previewA = _G.Widgets.PreviewCard(pane, PAD_X, y, 200, 40,
+        { name = "Cave-claw", state = "target", bars = false })
+    local previewB = _G.Widgets.PreviewCard(pane, PAD_X + 210, y, 200, 40,
+        { name = "Gimli", type = "FELLOWSHIP", state = "player", bars = false })
+
+    self:RegisterPreview(previewA, "target", false)
+    self:RegisterPreview(previewB, "player", false)
+
+    y = y + 46
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Preview updates as you change anything on any tab.")
+
+    self:UpdateCustomEnabled()
+
+    self:AddFooter(pane,
+        function()
+            _G.Settings.width             = self.widthStepper:GetValue()
+            _G.Settings.tooltip_height    = self.heightStepper:GetValue()
+            _G.Settings.tooltip_spacing   = self.gapStepper:GetValue()
+            _G.Settings.max_tooltip_count = self.maxStepper:GetValue()
+        end,
+        function()
+            _G.Settings.size_preset = "comfortable"
+            _G.Settings.horizontal = false
+            _G.Settings.reverseFill = false
+            _G.Settings.sort_order = "name"
+            _G.Settings.show_drag_handle = false
+            _G.Settings.show_dismiss = true
+            _G.Settings.width = 260
+            _G.Settings.tooltip_height = 52
+            _G.Settings.tooltip_spacing = 2
+            _G.Settings.max_tooltip_count = 5
+
+            self.sizeSegment:SetSelected(2)
+            self.directionSegment:SetSelected(1)
+            self.orderSegment:SetSelected(2)
+            self.reverseFillCheck:SetChecked(false)
+            self.dragHandleCheck:SetChecked(false)
+            self.dismissCheck:SetChecked(true)
+            self.widthStepper:SetValue(260)
+            self.heightStepper:SetValue(52)
+            self.gapStepper:SetValue(2)
+            self.maxStepper:SetValue(5)
+            self:UpdateCustomEnabled()
+        end
+    )
+
+end
+
+-- the dimension steppers only mean anything under the Custom preset
+function OptionPanel:UpdateCustomEnabled()
+
+    local custom = (_G.Settings.size_preset == "custom")
+
+    self.widthStepper:SetEnabled(custom)
+    self.heightStepper:SetEnabled(custom)
+    self.gapStepper:SetEnabled(custom)
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 2 — Keybindings
+
+function OptionPanel:BuildKeybindingsPane()
+
+    local pane = self:NewPane("Keybindings")
+    local y = PAD_TOP + 34
+
+    -- fixed columns, so both rows line up and neither can be pushed into the next by a long
+    -- binding. the row has to close by BODY_W: 110 label + 126 cap + two 78px buttons + gaps.
+    local LABEL_W = 110
+    local CAP_X   = PAD_X + LABEL_W + 4
+    local CAP_MAX = 126
+    local BTN1_X  = CAP_X + CAP_MAX + 6
+    local BTN2_X  = BTN1_X + 84
+
+    -- pin
+    _G.Widgets.Label(pane, PAD_X, y, LABEL_W, 26, "Pin target",
+        _G.Theme.font.body, _G.Theme.color.text)
+
+    self.addKeyCap = _G.Widgets.KeyCap(
+        pane, CAP_X, y, _G.Keys.Format(_G.Settings.keybinding_add), CAP_MAX)
+
+    _G.Widgets.Button(pane, BTN1_X, y, "Rebind", function()
+        self:BeginCapture("add")
+    end)
+
+    y = y + 30
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Pins whatever you have selected. Press again on the same target to un-pin.")
+    y = y + 30
+
+    -- clear
+    _G.Widgets.Label(pane, PAD_X, y, LABEL_W, 26, "Clear trackers",
+        _G.Theme.font.body, _G.Theme.color.text)
+
+    self.clearKeyCap = _G.Widgets.KeyCap(
+        pane, CAP_X, y, _G.Keys.Format(_G.Settings.keybinding_clear), CAP_MAX)
+
+    _G.Widgets.Button(pane, BTN1_X, y, "Rebind", function()
+        self:BeginCapture("clear")
+    end)
+
+    _G.Widgets.Button(pane, BTN2_X, y, "Unbind", function()
+        _G.Settings.use_clear_keybinding = false
+        self.clearKeyCap:SetText("unbound")
+        self:Commit()
+    end, true)
+
+    y = y + 32
+
+    self.onlyDeadCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Clear defeated only", _G.Settings.only_clear_dead,
+        function(value)
+            _G.Settings.only_clear_dead = value
+            self:Commit()
+        end
+    )
+    y = y + 36
+
+    -- inline capture prompt, replacing the old fullscreen overlay
+    self.capturePrompt = Turbine.UI.Control()
+    self.capturePrompt:SetParent(pane)
+    self.capturePrompt:SetPosition(PAD_X, y)
+    self.capturePrompt:SetSize(BODY_W, 110)
+    self.capturePrompt:SetVisible(false)
+    self.capturePrompt:SetWantsKeyEvents(true)
+
+    _G.Widgets.Box(self.capturePrompt, 0, 0, BODY_W, 110, _G.Theme.color.card, _G.Theme.color.line)
+
+    _G.Widgets.Label(self.capturePrompt, 14, 12, BODY_W - 28, 14, "WHILE REBINDING",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+
+    _G.Widgets.Box(self.capturePrompt, 14, 32, BODY_W - 28, 56, _G.Theme.color.well, _G.Theme.color.line)
+
+    _G.Widgets.Label(self.capturePrompt, 28, 32, 90, 56, "Press any key",
+        _G.Theme.font.body, _G.Theme.color.text)
+
+    local escCap = _G.Widgets.KeyCap(self.capturePrompt, 130, 47)
+    escCap:SetText("Esc")
+    escCap:SetAccent(true)
+
+    _G.Widgets.Label(self.capturePrompt, 180, 32, 90, 56, "cancels",
+        _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    self.capturePrompt.KeyDown = function(sender, args)
+        self:HandleCapture(args)
+    end
+
+    self:AddFooter(pane, nil, function()
+        _G.Settings.keybinding_add   = { shift = false, alt = false, ctrl = false, action = 268435706 }
+        _G.Settings.keybinding_clear = { shift = false, alt = false, ctrl = true,  action = 268435482 }
+        _G.Settings.use_clear_keybinding = true
+        _G.Settings.only_clear_dead = false
+        self.addKeyCap:SetText(_G.Keys.Format(_G.Settings.keybinding_add))
+        self.clearKeyCap:SetText(_G.Keys.Format(_G.Settings.keybinding_clear))
+        self.onlyDeadCheck:SetChecked(false)
+    end)
+
+end
+
+function OptionPanel:BeginCapture(which)
+
+    self.capturing = which
+    self.capturePrompt:SetVisible(true)
+    self.capturePrompt:Focus()
+
+end
+
+function OptionPanel:HandleCapture(args)
+
+    if self.capturing == nil then return end
+
+    -- ignore the modifiers themselves
+    if args.Action == 92 or args.Action == 19 then return end
+
+    -- esc cancels
+    if args.Action == 145 then
+        self.capturing = nil
+        self.capturePrompt:SetVisible(false)
+        return
+    end
+
+    local binding = {
+        shift  = args.Shift,
+        alt    = args.Alt,
+        ctrl   = args.Control,
+        action = args.Action,
+    }
+
+    if self.capturing == "add" then
+        _G.Settings.keybinding_add = binding
+        self.addKeyCap:SetText(_G.Keys.Format(binding))
+    else
+        _G.Settings.keybinding_clear = binding
+        _G.Settings.use_clear_keybinding = true
+        self.clearKeyCap:SetText(_G.Keys.Format(binding))
+    end
+
+    -- the code -> name map is built from the game's Action enum and doesn't cover every key, so
+    -- say so rather than silently showing a number
+    if _G.Keys.IsUnmapped(args.Action) then
+        Turbine.Shell.WriteLine(
+            "potato: no name known for key code " .. tostring(args.Action) ..
+            " - add it to the overrides table in ui/keys.lua to show it as a key."
+        )
+    end
+
+    self.capturing = nil
+    self.capturePrompt:SetVisible(false)
+    self:Commit()
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 3 — Combat
+
+function OptionPanel:BuildCombatPane()
+
+    local pane = self:NewPane("Combat")
+    local y = PAD_TOP + 34
+
+    self.dimDefeatedCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Dim defeated targets", _G.Settings.highlight_defeated,
+        function(value)
+            _G.Settings.highlight_defeated = value
+            self:Commit()
+        end
+    )
+    y = y + 28
+
+    _G.Widgets.Label(pane, PAD_X, y, 130, 20, "Remove after defeat",
+        _G.Theme.font.body, _G.Theme.color.text)
+    self.defeatDelayStepper = _G.Widgets.Stepper(pane, PAD_X + 140, y, {
+        value = _G.Settings.defeat_auto_remove_delay, min = 0, max = 120, unit = "s",
+    })
+    y = y + 24
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W, "0 keeps them.")
+    y = y + 24
+
+    _G.Widgets.Divider(pane, PAD_X, y, BODY_W)
+    y = y + 16
+
+    self.moraleCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Show morale bar", _G.Settings.display_morale,
+        function(value)
+            _G.Settings.display_morale = value
+            self:Commit()
+        end
+    )
+    y = y + 28
+
+    _G.Widgets.Label(pane, PAD_X, y, 130, 20, "Turn red under",
+        _G.Theme.font.body, _G.Theme.color.text)
+    self.moraleWarnStepper = _G.Widgets.Stepper(pane, PAD_X + 140, y, {
+        value = _G.Settings.morale_warn_pct, min = 0, max = 100, step = 5, unit = "%",
+    })
+    y = y + 28
+
+    self.moraleNumberCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Show the percentage as a number", _G.Settings.morale_show_number,
+        function(value)
+            _G.Settings.morale_show_number = value
+            self:Commit()
+        end
+    )
+    y = y + 28
+
+    self.moraleStaleCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Grey out stale morale", _G.Settings.morale_grey_stale,
+        function(value)
+            _G.Settings.morale_grey_stale = value
+            self:Commit()
+        end
+    )
+    y = y + 22
+
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Morale only updates while the game sends events for that entity. After")
+    _G.Widgets.Help(pane, PAD_X, y + 13, BODY_W,
+        "five seconds of silence the bar fades to grey rather than showing a")
+    _G.Widgets.Help(pane, PAD_X, y + 26, BODY_W,
+        "stale figure as if it were live.")
+    y = y + 48
+
+    local preview = _G.Widgets.PreviewCard(pane, PAD_X, y, 200, 52,
+        { name = "Cave-claw", state = "npc", bars = true })
+    self:RegisterPreview(preview, "npc", true)
+
+    _G.Widgets.Help(pane, PAD_X + 212, y + 8, BODY_W - 212,
+        "Both bars fit inside the card")
+    _G.Widgets.Help(pane, PAD_X + 212, y + 21, BODY_W - 212,
+        "- turning morale on never")
+    _G.Widgets.Help(pane, PAD_X + 212, y + 34, BODY_W - 212,
+        "changes the height of your HUD.")
+
+    self:AddFooter(pane,
+        function()
+            _G.Settings.defeat_auto_remove_delay = self.defeatDelayStepper:GetValue()
+            _G.Settings.morale_warn_pct = self.moraleWarnStepper:GetValue()
+        end,
+        function()
+            _G.Settings.highlight_defeated = true
+            _G.Settings.defeat_auto_remove_delay = 0
+            _G.Settings.display_morale = false
+            _G.Settings.morale_warn_pct = 25
+            _G.Settings.morale_show_number = true
+            _G.Settings.morale_grey_stale = true
+
+            self.dimDefeatedCheck:SetChecked(true)
+            self.moraleCheck:SetChecked(false)
+            self.moraleNumberCheck:SetChecked(true)
+            self.moraleStaleCheck:SetChecked(true)
+            self.defeatDelayStepper:SetValue(0)
+            self.moraleWarnStepper:SetValue(25)
+        end
+    )
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 4 — CC timers
+
+local CC_SKILLS = {
+    { key = "blinding_flash",    name = "Blinding Flash",   class = "Lore-master" },
+    { key = "riddle",            name = "Riddle",           class = "Burglar" },
+    { key = "distracting_shot",  name = "Distracting Shot", class = "Hunter" },
+    { key = "thrum_of_the_sea",  name = "Thrum of the Sea", class = "Mariner" },
+    { key = "sop_righteousness", name = "SoP: Righteousness", class = "Lore-master" },
+}
+
+function OptionPanel:BuildCCPane()
+
+    local pane = self:NewPane("CC timers")
+    local y = PAD_TOP + 34
+
+    self.ccEnabledCheck = _G.Widgets.Checkbox(
+        pane, PAD_X, y, "Show timers", _G.Settings.display_durations,
+        function(value)
+            _G.Settings.display_durations = value
+            self:Commit()
+        end
+    )
+
+    _G.Widgets.Label(pane, PAD_X + 200, y, 80, 20, "Warn under",
+        _G.Theme.font.body, _G.Theme.color.text)
+    self.ccWarnStepper = _G.Widgets.Stepper(pane, PAD_X + 285, y - 1, {
+        value = _G.Settings.cc_warning_threshold, min = 1, max = 60, unit = "s",
+    })
+    y = y + 30
+
+    -- skill table
+    local COL_NAME = PAD_X + 30
+    local COL_DUR  = PAD_X + 270
+
+    _G.Widgets.Label(pane, COL_NAME, y, 200, 16, "SKILL",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+    _G.Widgets.Label(pane, COL_DUR, y, 80, 16, "DURATION",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+    _G.Widgets.RowSeparator(pane, PAD_X, y + 18, BODY_W, true)
+    y = y + 22
+
+    self.ccChecks = {}
+    self.ccSteppers = {}
+
+    for _, skill in ipairs(CC_SKILLS) do
+
+        local saved = _G.Settings.cc_skills[skill.key]
+        local key = skill.key
+
+        local check = _G.Widgets.Checkbox(pane, PAD_X, y + 3, "", saved.enabled, function(value)
+            _G.Settings.cc_skills[key].enabled = value
+            self:Commit()
+        end)
+        check.control:SetSize(20, 18)
+
+        _G.Widgets.Label(pane, COL_NAME, y, 240, 22,
+            skill.name .. _G.Theme.sep .. skill.class,
+            _G.Theme.font.control, _G.Theme.color.text)
+
+        local stepper = _G.Widgets.Stepper(pane, COL_DUR, y + 1, {
+            value = saved.duration, min = 1, max = 300, unit = "s", width = 36,
+        })
+
+        _G.Widgets.RowSeparator(pane, PAD_X, y + CC_ROW_H - 1, BODY_W)
+
+        self.ccChecks[key] = check
+        self.ccSteppers[key] = stepper
+
+        y = y + CC_ROW_H
+
+    end
+
+    -- custom skills. the five always-visible blank rows are gone: only filled slots render, and
+    -- the add button claims the next free one
+    self.customRowTop = y
+    self.customRows = {}
+    self:RebuildCustomRows()
+
+    self:AddFooter(pane,
+        function()
+            for _, skill in ipairs(CC_SKILLS) do
+                _G.Settings.cc_skills[skill.key].duration = self.ccSteppers[skill.key]:GetValue()
+            end
+            _G.Settings.cc_warning_threshold = self.ccWarnStepper:GetValue()
+
+            for _, row in ipairs(self.customRows) do
+                local slot = _G.Settings.cc_custom_skills[row.index]
+                slot.name     = row.nameBox:GetText() or ""
+                slot.duration = row.stepper:GetValue()
+                slot.icon     = tonumber(row.iconBox:GetText()) or slot.icon
+                slot.enabled  = (slot.name ~= "")
+            end
+
+            -- a row whose name was cleared has just been retired, so redraw the list
+            self:RebuildCustomRows()
+        end,
+        function()
+            _G.Settings.display_durations = true
+            _G.Settings.cc_warning_threshold = 5
+            self.ccEnabledCheck:SetChecked(true)
+            self.ccWarnStepper:SetValue(5)
+
+            local defaults = { 30, 30, 35, 25, 15 }
+            for i, skill in ipairs(CC_SKILLS) do
+                _G.Settings.cc_skills[skill.key].enabled = true
+                _G.Settings.cc_skills[skill.key].duration = defaults[i]
+                self.ccChecks[skill.key]:SetChecked(true)
+                self.ccSteppers[skill.key]:SetValue(defaults[i])
+            end
+        end
+    )
+
+end
+
+function OptionPanel:RebuildCustomRows()
+
+    local pane = self.panes[4]
+
+    -- drop whatever is on screen and redraw from the settings
+    for _, row in ipairs(self.customRows) do
+        row.container:SetParent(nil)
+    end
+    self.customRows = {}
+
+    local y = self.customRowTop
+
+    for i, slot in ipairs(_G.Settings.cc_custom_skills) do
+
+        if slot.name ~= nil and slot.name ~= "" and #self.customRows < CC_MAX_CUSTOM then
+
+            local container = Turbine.UI.Control()
+            container:SetParent(pane)
+            container:SetPosition(0, y)
+            container:SetSize(PANE_W, CC_ROW_H)
+
+            local nameBox = Turbine.UI.Lotro.TextBox()
+            nameBox:SetParent(container)
+            nameBox:SetPosition(PAD_X + 30, 1)
+            nameBox:SetSize(160, 20)
+            nameBox:SetFont(_G.Theme.font.control)
+            nameBox:SetText(slot.name)
+
+            local iconBox = Turbine.UI.Lotro.TextBox()
+            iconBox:SetParent(container)
+            iconBox:SetPosition(PAD_X + 200, 1)
+            iconBox:SetSize(62, 20)
+            iconBox:SetFont(_G.Theme.font.help)
+            iconBox:SetText(tostring(slot.icon or 1090541222))
+
+            local stepper = _G.Widgets.Stepper(container, PAD_X + 270, 1, {
+                value = slot.duration, min = 1, max = 300, unit = "s", width = 36,
+            })
+
+            -- clearing the name would do it too, but that only takes effect on Apply
+            local index = i
+            _G.Widgets.Button(container, PAD_X + 360, 0, "x", function()
+                self:RemoveCustomSkill(index)
+            end, true)
+
+            _G.Widgets.RowSeparator(container, PAD_X, CC_ROW_H - 1, BODY_W)
+
+            self.customRows[#self.customRows + 1] = {
+                index = i, container = container,
+                nameBox = nameBox, stepper = stepper, iconBox = iconBox,
+            }
+
+            y = y + CC_ROW_H
+
+        end
+
+    end
+
+    if self.addSkillButton ~= nil then
+        self.addSkillButton.control:SetParent(nil)
+        self.addSkillButton = nil
+    end
+
+    if #self.customRows < CC_MAX_CUSTOM then
+        self.addSkillButton = _G.Widgets.Button(pane, PAD_X, y + 4, "+ Add a custom skill", function()
+            self:AddCustomSkill()
+        end, true)
+    end
+
+    if self.ccHelp ~= nil then
+        self.ccHelp:SetParent(nil)
+    end
+    self.ccHelp = _G.Widgets.Help(pane, PAD_X, y + 34, BODY_W,
+        "Durations are the base skill length - resists and diminishing returns still apply.")
+
+end
+
+function OptionPanel:RemoveCustomSkill(index)
+
+    local slot = _G.Settings.cc_custom_skills[index]
+
+    if slot ~= nil then
+        slot.name = ""
+        slot.enabled = false
+    end
+
+    _G.SaveSettings()
+    self:RebuildCustomRows()
+
+end
+
+function OptionPanel:AddCustomSkill()
+
+    if #self.customRows >= CC_MAX_CUSTOM then return end
+
+    -- claim the first free slot, growing the list if they're all taken
+    local slot
+    for i = 1, #_G.Settings.cc_custom_skills do
+        local candidate = _G.Settings.cc_custom_skills[i]
+        if candidate.name == nil or candidate.name == "" then
+            slot = candidate
+            break
+        end
+    end
+
+    if slot == nil then
+        slot = { duration = 30, enabled = false, icon = 1090541222 }
+        _G.Settings.cc_custom_skills[#_G.Settings.cc_custom_skills + 1] = slot
+    end
+
+    slot.name = "New skill"
+    slot.enabled = false
+
+    _G.SaveSettings()
+    self:RebuildCustomRows()
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 5 — Appearance
+
+local SWATCH_SETS = {
+    { key = "color_player",   label = "Players",     tokens = { "green", "swatchTeal", "swatchBrass", "greyRail" } },
+    { key = "color_npc",      label = "NPCs",        tokens = { "greyRail", "swatchTeal", "swatchBrass", "green" } },
+    { key = "color_item",     label = "Objects",     tokens = { "greyRailDim", "swatchTeal", "swatchBrass", "greyRail" } },
+    { key = "color_targeted", label = "Your target", tokens = { "accent", "goldText", "red", "swatchPale" } },
+}
+
+function OptionPanel:BuildAppearancePane()
+
+    local pane = self:NewPane("Appearance")
+    local y = PAD_TOP + 34
+
+    self.swatchRows = {}
+
+    for _, set in ipairs(SWATCH_SETS) do
+
+        _G.Widgets.Label(pane, PAD_X, y, 90, 20, set.label,
+            _G.Theme.font.body, _G.Theme.color.text)
+
+        local row = { key = set.key, swatches = {} }
+        local x = PAD_X + 100
+
+        for i, token in ipairs(set.tokens) do
+
+            local color = _G.Theme.color[token]
+            local index = i
+
+            local swatch = _G.Widgets.Swatch(pane, x, y, color, false, function()
+                _G.Settings[set.key] = { r = color.R, g = color.G, b = color.B }
+                for j, other in ipairs(row.swatches) do
+                    other:SetSelected(j == index)
+                end
+                self:Commit()
+            end)
+
+            row.swatches[i] = swatch
+            x = x + 28
+
+        end
+
+        local target = set
+        _G.Widgets.SwatchAdd(pane, x, y, function()
+            self:OpenExactColor(target)
+        end)
+
+        self.swatchRows[#self.swatchRows + 1] = row
+        y = y + 30
+
+    end
+
+    y = y + 6
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W, "\"+\" opens the 0-255 boxes if you want an exact value.")
+    y = y + 24
+
+    _G.Widgets.Divider(pane, PAD_X, y, BODY_W)
+    y = y + 14
+
+    _G.Widgets.Label(pane, PAD_X, y, 80, 22, "Name text",
+        _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    self.nameTextSegment = _G.Widgets.Segmented(
+        pane, PAD_X + 85, y, { "Outlined", "Plain" },
+        (_G.Settings.name_outline == false) and 2 or 1,
+        function(index)
+            _G.Settings.name_outline = (index == 1)
+            self:Commit()
+        end
+    )
+
+    self.typeLineCheck = _G.Widgets.Checkbox(
+        pane, PAD_X + 85 + self.nameTextSegment.width + 16, y + 2, "Show type line",
+        _G.Settings.show_type_line,
+        function(value)
+            _G.Settings.show_type_line = value
+            self:Commit()
+        end
+    )
+
+    -- clears the exact-colour editor, which opens over the space above the previews
+    y = EXACT_TOP + EXACT_H + 10
+
+    -- every state visible while you pick
+    local states = { "target", "player", "object", "dead" }
+    local names  = { "Cave-claw", "Gimli", "Chest", "Warg" }
+    local x = PAD_X
+
+    for i, state in ipairs(states) do
+        local card = _G.Widgets.PreviewCard(pane, x, y, 196, 44,
+            { name = names[i], state = state, bars = false })
+        self:RegisterPreview(card, state, false)
+        x = x + 204
+        if i == 2 then
+            x = PAD_X
+            y = y + 50
+        end
+    end
+
+    -- built last so it draws over the previews it covers while open
+    self:BuildExactColor(pane)
+
+    self:SyncSwatchSelection()
+
+    self:AddFooter(pane, nil, function()
+        _G.Settings.color_player   = { r = _G.Theme.color.green.R,       g = _G.Theme.color.green.G,       b = _G.Theme.color.green.B }
+        _G.Settings.color_npc      = { r = _G.Theme.color.greyRail.R,    g = _G.Theme.color.greyRail.G,    b = _G.Theme.color.greyRail.B }
+        _G.Settings.color_item     = { r = _G.Theme.color.greyRailDim.R, g = _G.Theme.color.greyRailDim.G, b = _G.Theme.color.greyRailDim.B }
+        _G.Settings.color_targeted = { r = _G.Theme.color.accent.R,      g = _G.Theme.color.accent.G,      b = _G.Theme.color.accent.B }
+        _G.Settings.name_outline = true
+        _G.Settings.show_type_line = true
+
+        self.nameTextSegment:SetSelected(1)
+        self.typeLineCheck:SetChecked(true)
+        self.exactBox:SetVisible(false)
+        self.exactSet = nil
+        self:SyncSwatchSelection()
+    end)
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- exact color
+--
+-- the "+" at the end of a swatch row. one editor serves all four rows: it opens over the previews,
+-- pointed at whichever row asked for it. 0-255 because that's what people have written down, even
+-- though Turbine takes floats.
+
+function OptionPanel:BuildExactColor(pane)
+
+    local box = Turbine.UI.Control()
+    box:SetParent(pane)
+    box:SetPosition(PAD_X, EXACT_TOP)
+    box:SetSize(BODY_W, EXACT_H)
+    box:SetVisible(false)
+    box:SetMouseVisible(true)
+
+    _G.Widgets.Box(box, 0, 0, BODY_W, EXACT_H, _G.Theme.color.card, _G.Theme.color.line)
+
+    self.exactTitle = _G.Widgets.Label(box, 12, 8, 300, 14, "EXACT COLOUR",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+
+    self.exactPreview = _G.Widgets.Rect(box, 360, 8, 34, 34, _G.Theme.color.greyRail)
+
+    local function channel(label, x)
+
+        _G.Widgets.Label(box, x, 36, 14, 20, label,
+            _G.Theme.font.control, _G.Theme.color.textMuted)
+
+        return _G.Widgets.Stepper(box, x + 16, 36, {
+            value = 0, min = 0, max = 255,
+            onChange = function() self:RefreshExactPreview() end,
+        })
+
+    end
+
+    self.exactR = channel("R", 12)
+    self.exactG = channel("G", 120)
+    self.exactB = channel("B", 228)
+
+    _G.Widgets.Button(box, 12, 66, "Use this", function()
+        self:CommitExactColor()
+    end)
+
+    _G.Widgets.Button(box, 100, 66, "Cancel", function()
+        self.exactBox:SetVisible(false)
+        self.exactSet = nil
+    end, true)
+
+    self.exactBox = box
+
+end
+
+function OptionPanel:RefreshExactPreview()
+
+    self.exactPreview:SetBackColor(Turbine.UI.Color(
+        self.exactR:GetValue() / 255,
+        self.exactG:GetValue() / 255,
+        self.exactB:GetValue() / 255
+    ))
+
+end
+
+function OptionPanel:OpenExactColor(set)
+
+    self.exactSet = set
+
+    local saved = _G.Settings[set.key] or { r = 0, g = 0, b = 0 }
+
+    self.exactTitle:SetText("EXACT COLOUR" .. _G.Theme.sep .. string.upper(set.label))
+    self.exactR:SetValue(math.floor(saved.r * 255 + 0.5))
+    self.exactG:SetValue(math.floor(saved.g * 255 + 0.5))
+    self.exactB:SetValue(math.floor(saved.b * 255 + 0.5))
+    self:RefreshExactPreview()
+
+    self.exactBox:SetVisible(true)
+
+end
+
+function OptionPanel:CommitExactColor()
+
+    if self.exactSet == nil then return end
+
+    _G.Settings[self.exactSet.key] = {
+        r = self.exactR:GetValue() / 255,
+        g = self.exactG:GetValue() / 255,
+        b = self.exactB:GetValue() / 255,
+    }
+
+    self.exactBox:SetVisible(false)
+    self.exactSet = nil
+
+    self:SyncSwatchSelection()
+    self:Commit()
+
+end
+
+-- marks whichever swatch matches the saved color
+function OptionPanel:SyncSwatchSelection()
+
+    for _, row in ipairs(self.swatchRows) do
+
+        local saved = _G.Settings[row.key]
+
+        for i, swatch in ipairs(row.swatches) do
+            local c = swatch.swatch:GetBackColor()
+            local match = saved ~= nil
+                and math.abs(c.R - saved.r) < 0.01
+                and math.abs(c.G - saved.g) < 0.01
+                and math.abs(c.B - saved.b) < 0.01
+            swatch:SetSelected(match)
+        end
+
+    end
+
 end

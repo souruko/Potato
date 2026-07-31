@@ -2,6 +2,7 @@ import "Turbine.Gameplay"
 import "Turbine.UI"
 import "Turbine.UI.Lotro"
 
+import "Potato.ui.theme"
 import "Potato.ui.potatoWindow"
 import "Potato.ui.optionPanel"
 
@@ -33,10 +34,9 @@ if _G.Settings == nil then
     _G.Settings.tooltip_height = 50
     _G.Settings.max_tooltip_count = 5
     _G.Settings.tooltip_spacing = 5
-    _G.Settings.tooltip_label_spacing = 5
     _G.Settings.highlight_defeated = true
     _G.Settings.display_durations = true
-    _G.Settings.sort = 1 -- 0=noSort 1=byName
+    _G.Settings.sort_order = "name" -- "pinned" | "name"
     _G.Settings.keybinding_add = {}
     _G.Settings.keybinding_add.shift = false
     _G.Settings.keybinding_add.alt = false
@@ -68,11 +68,45 @@ end
 if _G.Settings.defeat_auto_remove_delay == nil then
     _G.Settings.defeat_auto_remove_delay = 0
 end
-if _G.Settings.duration_bar_height == nil then
-    _G.Settings.duration_bar_height = 20
-end
 if _G.Settings.display_morale == nil then
     _G.Settings.display_morale = false
+end
+-- redesign defaults. size_preset drives the card dimensions; the old width / tooltip_height /
+-- tooltip_spacing values are kept and become the "custom" case, so nothing is lost by switching
+-- back and forth. see docs/redesign/HANDOFF.md.
+
+-- sort was a 0/1 number; carry an existing savefile over to the named value and drop the old key.
+-- duration_bar_height went with it: the bars are part of the card's fixed height now, so a user
+-- height would only push the card out of shape.
+if _G.Settings.sort_order == nil then
+    _G.Settings.sort_order = (_G.Settings.sort == 0) and "pinned" or "name"
+end
+_G.Settings.sort = nil
+_G.Settings.duration_bar_height = nil
+
+if _G.Settings.size_preset == nil then
+    _G.Settings.size_preset = "comfortable"
+end
+if _G.Settings.show_type_line == nil then
+    _G.Settings.show_type_line = true
+end
+if _G.Settings.name_outline == nil then
+    _G.Settings.name_outline = true
+end
+if _G.Settings.morale_warn_pct == nil then
+    _G.Settings.morale_warn_pct = 25
+end
+if _G.Settings.morale_show_number == nil then
+    _G.Settings.morale_show_number = true
+end
+if _G.Settings.morale_grey_stale == nil then
+    _G.Settings.morale_grey_stale = true
+end
+if _G.Settings.show_drag_handle == nil then
+    _G.Settings.show_drag_handle = false
+end
+if _G.Settings.show_dismiss == nil then
+    _G.Settings.show_dismiss = true
 end
 if _G.Settings.cc_custom_skills == nil then _G.Settings.cc_custom_skills = {} end
 for i = 1, 5 do

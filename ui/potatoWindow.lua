@@ -7,6 +7,7 @@
 -- - and key events
 ---------------------------------------------------------------------------------------------------
 
+import "Potato.ui.theme"
 import "Potato.ui.potatoTooltip"
 
 
@@ -24,23 +25,24 @@ function PotatoWindow:Constructor()
     self.listbox:SetParent(self)
     self.listbox:SetMouseVisible(false)
 
-    -- move anchor
+    -- drag handle. it used to be a green 20x20 square sitting on top of the first card, covering
+    -- its name; it's now a strip above the stack so it never obscures anything
     self.moveAnchor = Turbine.UI.Control()
     self.moveAnchor:SetParent(self)
-    self.moveAnchor:SetSize(20, 20)
+    self.moveAnchor:SetSize(_G.Theme.metrics.dragHandleWidth, _G.Theme.metrics.dragHandleHeight)
     self.moveAnchor:SetPosition(0, 0)
-    self.moveAnchor:SetBackColor(Turbine.UI.Color.Green)
+    self.moveAnchor:SetBackColor(_G.Theme.color.line)
     self.moveAnchor:SetVisible(false)
     self.moveAnchor:SetZOrder(1000)
 
     self.moveAnchorLabel = Turbine.UI.Label()
     self.moveAnchorLabel:SetParent(self.moveAnchor)
-    self.moveAnchorLabel:SetSize(20, 20)
+    self.moveAnchorLabel:SetSize(_G.Theme.metrics.dragHandleWidth, _G.Theme.metrics.dragHandleHeight)
     self.moveAnchorLabel:SetPosition(0, 0)
-    self.moveAnchorLabel:SetText("+")
-    self.moveAnchorLabel:SetFont(Turbine.UI.Lotro.Font.Verdana14)
+    self.moveAnchorLabel:SetText("DRAG")
+    self.moveAnchorLabel:SetFont(_G.Theme.font.dragHandle)
     self.moveAnchorLabel:SetTextAlignment(Turbine.UI.ContentAlignment.MiddleCenter)
-    self.moveAnchorLabel:SetForeColor(Turbine.UI.Color.White)
+    self.moveAnchorLabel:SetForeColor(_G.Theme.color.dismissGlyph)
     self.moveAnchorLabel:SetFontStyle(Turbine.UI.FontStyle.Outline)
     self.moveAnchorLabel:SetMouseVisible(false)
 
@@ -103,10 +105,10 @@ function PotatoWindow:Constructor()
 
 end
 
-function PotatoWindow:DisplayDuration(icon, duration, targetName)
-    
+function PotatoWindow:DisplayDuration(icon, duration, targetName, skillName)
+
     for i = 1, self.listbox:GetItemCount(), 1 do
-        self.listbox:GetItem(i):DisplayDuration(icon, duration, targetName)
+        self.listbox:GetItem(i):DisplayDuration(icon, duration, targetName, skillName)
     end
 
 end
@@ -129,7 +131,8 @@ end
 
 function PotatoWindow:ShowAnchor(value)
 
-    self.moveAnchor:SetVisible(value)
+    _G.Settings.show_drag_handle = value
+    self:ApplySettings()
 
 end
 
@@ -187,7 +190,7 @@ function PotatoWindow:AddTooltip()
     self.listbox:AddItem(ui.PotatoTooltip(targetName, target, entityType, self))
 
     -- sort alphabeticly
-    if _G.Settings.sort == 1 then
+    if _G.Settings.sort_order == "name" then
         self.listbox:Sort(
             function (a, b)
                 if a.name < b.name then
@@ -241,23 +244,28 @@ function PotatoWindow:ApplySettings()
     -- position
     self:SetPosition(_G.Settings.left, _G.Settings.top)
 
-    -- size
-    local ccBarH  = _G.Settings.display_durations and _G.Settings.duration_bar_height or 0
-    local moraleH = _G.Settings.display_morale    and _G.Settings.duration_bar_height or 0
-    local tooltipTotalHeight = _G.Settings.tooltip_height
-        + ccBarH  + (ccBarH  > 0 and 2 or 0)
-        + moraleH + (moraleH > 0 and 2 or 0)
-    local height = (tooltipTotalHeight + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
-    local width = _G.Settings.width + _G.Settings.tooltip_spacing
+    -- size. the card is a fixed height now — the bars live inside it, so turning morale or CC on
+    -- no longer grows either the card or the stack
+    local m = _G.Theme.CardMetrics()
+    local height = (m.height + m.gap) * _G.Settings.max_tooltip_count
+    local width = m.width + m.gap
     if _G.Settings.horizontal then
-        height = tooltipTotalHeight
-        width = (_G.Settings.width + _G.Settings.tooltip_spacing) * _G.Settings.max_tooltip_count
+        height = m.height + m.gap
+        width = (m.width + m.gap) * _G.Settings.max_tooltip_count
         self.listbox:SetMaxItemsPerLine(1)
     else
         self.listbox:SetMaxItemsPerLine()
     end
     self.listbox:SetReverseFill(_G.Settings.reverseFill)
-    self:SetSize(width, height)
+
+    -- the handle takes its own strip above the cards, so the window grows to make room for it.
+    -- toggling it shifts the stack down by its height, which is fine — you turn it on precisely
+    -- when you're about to reposition the HUD anyway
+    local handleH = _G.Settings.show_drag_handle and _G.Theme.metrics.dragHandleHeight or 0
+
+    self.moveAnchor:SetVisible(_G.Settings.show_drag_handle == true)
+    self:SetSize(width, height + handleH)
+    self.listbox:SetPosition(0, handleH)
     self.listbox:SetSize(width, height)
 
     for i = self.listbox:GetItemCount(), 1, -1 do

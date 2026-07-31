@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.0.0] — 2026-07-31
+
+A complete visual redesign of the plugin.
+
+### Added
+- The options panel has been rebuilt around five tabs — Layout, Keybindings, Combat, CC timers and Appearance — and no longer scrolls. Each tab has its own Apply and Reset.
+- Two ready-made tracker sizes, Comfortable and Compact, alongside the custom width and height you could already set.
+- The close button on each tracker can be turned off, if you would rather clear trackers with the keybinding and keep the card clear.
+- Keybindings now show the actual key, such as "Ctrl + J", instead of a number.
+- Rebinding a key happens inside the options panel instead of taking over the whole screen.
+- Numbers are set with minus and plus buttons you can hold down, rather than typed into a box.
+- Custom CC skills only take up space once you have added them, and each one has a button to remove it.
+- Colours can be picked from a row of presets or set to an exact value.
+- Live previews on the Layout, Combat and Appearance tabs, so you can see a setting take effect without closing the panel.
+
+### Changed
+- Trackers have a new look: a dark card with a coloured stripe down the left edge showing what you are tracking, instead of the whole card being tinted.
+- Cards are a fixed height. Turning the CC timer or morale bar on no longer makes your HUD grow or shift.
+- A small line under the name says whether the target is an NPC, a fellowship member or an object, and reads "YOUR TARGET" when it is your current target.
+- Defeated targets are struck through and marked "DEFEATED" rather than only dimmed.
+- The close button is a narrow strip on the right edge that appears when you hover over a card, so it no longer sits over the name.
+- The drag handle is a small strip above the trackers, and can be hidden once you are happy with the position.
+- Trackers sit closer together by default.
+- Morale that has stopped updating fades to grey after five seconds and stays there, instead of fading gradually over fifteen.
+
+### Removed
+- The CC bar height setting. The bars are now part of the card's fixed height.
+
 ## [1.3.0] — 2026-07-17
 
 ### Added
