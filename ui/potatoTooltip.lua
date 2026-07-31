@@ -201,8 +201,8 @@ function PotatoTooltip:ApplyState()
 
     local color = _G.Theme.color
 
-    local fill    = color.card
-    local border  = color.line
+    local fill    = _G.Theme.CardFill("rest")
+    local border  = _G.Theme.BorderColor("rest")
     local rail    = _G.Theme.RailColor(self.entityType)
     local nameCol = _G.Theme.NameColor(self.entityType)
     local railW   = _G.Theme.metrics.railWidth
@@ -210,33 +210,33 @@ function PotatoTooltip:ApplyState()
 
     if self.isDead then
 
-        fill    = color.cardDead
-        border  = color.lineDead
+        fill    = _G.Theme.CardFill("dead")
+        border  = _G.Theme.BorderColor("dead")
         rail    = color.greyRailDim
-        nameCol = color.textQuiet
+        nameCol = _G.Theme.Ink(color.textQuiet)
 
     elseif self.ccBreaking then
 
-        fill   = color.cardWarn
+        fill   = _G.Theme.CardFill("warn")
         border = color.redLine
 
     elseif self.isHover then
 
-        fill   = color.cardHover
-        border = color.lineStrong
+        fill   = _G.Theme.CardFill("hover")
+        border = _G.Theme.BorderColor("hover")
 
     end
 
     if self.isTarget then
 
-        fill    = color.cardTarget
-        border  = color.accent
-        rail    = color.accent
+        fill    = _G.Theme.CardFill("target")
+        border  = _G.Theme.TargetColor()
+        rail    = _G.Theme.TargetColor()
         railW   = _G.Theme.metrics.railTargetWidth
         borderW = _G.Theme.metrics.borderTarget
 
         if not self.isDead then
-            nameCol = color.textBright
+            nameCol = _G.Theme.Ink(color.textBright)
         end
 
     end
@@ -332,9 +332,9 @@ function PotatoTooltip:RefreshTypeLine()
 
     end
 
-    local markup = "<rgb=" .. _G.Theme.Markup(textColor) .. ">" .. text .. "</rgb>"
+    local markup = "<rgb=" .. _G.Theme.Markup(_G.Theme.Ink(textColor)) .. ">" .. text .. "</rgb>"
     if suffix ~= nil then
-        markup = markup .. "<rgb=" .. _G.Theme.Markup(suffixColor) .. ">" .. suffix .. "</rgb>"
+        markup = markup .. "<rgb=" .. _G.Theme.Markup(_G.Theme.Ink(suffixColor)) .. ">" .. suffix .. "</rgb>"
     end
 
     self.typeLabel:SetText(markup)
@@ -345,14 +345,14 @@ end
 function PotatoTooltip:MoraleTextColor()
 
     if self.moraleStale then
-        return _G.Theme.color.textFaint
+        return _G.Theme.Ink(_G.Theme.color.textFaint)
     end
 
     if self.moraleFraction * 100 <= (_G.Settings.morale_warn_pct or 25) then
-        return _G.Theme.color.redLight
+        return _G.Theme.Ink(_G.Theme.color.redLight)
     end
 
-    return _G.Theme.color.greenLight
+    return _G.Theme.Ink(_G.Theme.color.greenLight)
 
 end
 
@@ -428,7 +428,7 @@ function PotatoTooltip:LayoutBars()
     self.barWidth = width
 
     -- a targeted card's fill is light enough that the bars need a darker track under them
-    local track = self.isTarget and color.ground or color.barTrack
+    local track = _G.Theme.TrackColor(self.isTarget)
     self.moraleTrack:SetBackColor(track)
     self.ccTrack:SetBackColor(track)
 
@@ -468,6 +468,17 @@ function PotatoTooltip:LayoutBars()
     self.ccSuffix:SetVisible(ccOn)
 
     self:LayoutDismiss()
+
+end
+
+-- the seconds, violet while the timer runs and red once it's about to break
+function PotatoTooltip:CCTextColor(breaking)
+
+    if breaking then
+        return _G.Theme.Ink(_G.Theme.color.redLight)
+    end
+
+    return _G.Theme.Ink(_G.Theme.color.accentPale)
 
 end
 
@@ -524,7 +535,7 @@ function PotatoTooltip:DisplayDuration(icon, duration, targetName, skillName)
     self.ccBreaking  = duration <= _G.Settings.cc_warning_threshold
 
     self.ccSeconds:SetText(tostring(math.ceil(duration)))
-    self.ccSeconds:SetForeColor(self.ccBreaking and _G.Theme.color.redLight or _G.Theme.color.accentPale)
+    self.ccSeconds:SetForeColor(self:CCTextColor(self.ccBreaking))
 
     self:SetWantsUpdates(true)
     self:ApplyState()
@@ -623,7 +634,7 @@ function PotatoTooltip:Update()
             local breaking = timeLeft <= _G.Settings.cc_warning_threshold
             if breaking ~= self.ccBreaking then
                 self.ccBreaking = breaking
-                self.ccSeconds:SetForeColor(breaking and _G.Theme.color.redLight or _G.Theme.color.accentPale)
+                self.ccSeconds:SetForeColor(self:CCTextColor(breaking))
                 self:ApplyState()
             end
 
@@ -692,6 +703,11 @@ function PotatoTooltip:ApplySettings()
 
     self.moralePct:SetSize(40, m.moraleHeight)
     self.moralePct:SetPosition(m.width - 11 - 40, m.moraleTop)
+
+    -- the labels whose colour never changes with card state still follow the card background, since
+    -- a light one needs dark text
+    self.ccSuffix:SetForeColor(_G.Theme.Ink(_G.Theme.color.textMuted))
+    self.dismissLabel:SetForeColor(_G.Theme.Ink(_G.Theme.color.dismissGlyph))
 
     -- the dismiss column is positioned in ApplyState, since its inset tracks the border width.
     -- switching it off while a card is hovered has to take effect now rather than on the next

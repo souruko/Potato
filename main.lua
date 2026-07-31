@@ -132,6 +132,25 @@ if _G.Settings.color_player   == nil then _G.Settings.color_player   = {r=0.157,
 if _G.Settings.color_npc      == nil then _G.Settings.color_npc      = {r=0,     g=0,     b=0}   end
 if _G.Settings.color_item     == nil then _G.Settings.color_item     = {r=0.2,   g=0.2,   b=0.2} end
 if _G.Settings.color_targeted == nil then _G.Settings.color_targeted = {r=1,     g=1,     b=0}   end
+-- the card background. every other fill the card takes — hover, target, defeated, CC breaking — is
+-- derived from this one in Theme.CardFill, so there is a single colour to set.
+if _G.Settings.color_card     == nil then _G.Settings.color_card     = {r=0.110, g=0.118, b=0.169} end
+
+-- these four keys predate the redesign, which stopped reading them: the card painted itself from
+-- the Nocturne tokens instead, so an old savefile still carries black NPCs and a yellow target.
+-- the card reads them again now, so those values are carried over to the redesign palette once —
+-- nothing visible is lost, since 2.0 was never drawing them.
+if _G.Settings.colors_nocturne == nil then
+
+    _G.Settings.color_player   = {r=0.294, g=0.561, b=0.369}  -- green
+    _G.Settings.color_npc      = {r=0.459, g=0.475, b=0.549}  -- greyRail
+    _G.Settings.color_item     = {r=0.247, g=0.259, b=0.302}  -- greyRailDim
+    _G.Settings.color_targeted = {r=0.569, g=0.518, b=0.851}  -- accent
+    _G.Settings.color_card     = {r=0.110, g=0.118, b=0.169}  -- card
+
+    _G.Settings.colors_nocturne = true
+
+end
 
 local function toColor(t) return Turbine.UI.Color(t.r, t.g, t.b) end
 _G.Settings.tooltip_color_player        = toColor(_G.Settings.color_player)

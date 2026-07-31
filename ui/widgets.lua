@@ -476,10 +476,13 @@ function _G.Widgets.Swatch(parent, x, y, color, selected, onClick)
     w.control:SetSize(26, 26)
     w.control:SetMouseVisible(true)
 
-    -- selection ring: a 26 accent square, a 24 ground square, then the 20 swatch
+    -- selection ring: a 26 accent square, a 24 ground square, then the 20 swatch. the swatch keeps
+    -- a 1px edge of its own, or the near-black background choices would be invisible against the
+    -- panel they sit on
     w.ring   = _G.Widgets.Rect(w.control, 0, 0, 26, 26, _G.Theme.color.accent)
     w.gap    = _G.Widgets.Rect(w.control, 1, 1, 24, 24, _G.Theme.color.ground)
-    w.swatch = _G.Widgets.Rect(w.control, 3, 3, 20, 20, color)
+    w.edge   = _G.Widgets.Rect(w.control, 3, 3, 20, 20, _G.Theme.color.lineStrong)
+    w.swatch = _G.Widgets.Rect(w.control, 4, 4, 18, 18, color)
 
     w.control.MouseClick = function(sender, args)
         if onClick then onClick() end
@@ -622,39 +625,46 @@ function _G.Widgets.PreviewCard(parent, x, y, width, height, opts)
     w.ccFill      = _G.Widgets.Rect(w.control, 0, height - 5, math.floor(width * 0.55), 5, color.accent)
 
     -- state: "npc" | "player" | "object" | "target" | "dead"
+    --
+    -- the colors come from Theme rather than the tokens directly, so a preview shows the card
+    -- background and rail colors the Appearance pane has been given
     function w:SetState(state, showBars)
 
-        local fill    = color.card
-        local border  = color.line
-        local rail    = color.greyRail
-        local nameCol = color.text
-        local typeCol = color.textQuiet
+        local Ink = _G.Theme.Ink
+
+        local fill    = _G.Theme.CardFill("rest")
+        local border  = _G.Theme.BorderColor("rest")
+        local rail    = _G.Theme.RailColor(3)
+        local nameCol = Ink(color.text)
+        local typeCol = Ink(color.textQuiet)
         local typeTxt = "NPC"
 
         if state == "player" then
-            rail = color.green
+            rail = _G.Theme.RailColor(1)
             typeTxt = "FELLOWSHIP"
         elseif state == "object" then
-            rail = color.greyRailDim
-            nameCol = color.textDim
+            rail = _G.Theme.RailColor(2)
+            nameCol = Ink(color.textDim)
             typeTxt = "OBJECT"
         elseif state == "target" then
-            fill = color.cardTarget
-            border = color.accent
-            rail = color.accent
-            nameCol = color.textBright
-            typeCol = color.accentLight
+            fill = _G.Theme.CardFill("target")
+            border = _G.Theme.TargetColor()
+            rail = _G.Theme.TargetColor()
+            nameCol = Ink(color.textBright)
+            typeCol = Ink(color.accentLight)
             typeTxt = "NPC" .. _G.Theme.sep .. "YOUR TARGET"
         elseif state == "dead" then
-            fill = color.cardDead
-            border = color.lineDead
+            fill = _G.Theme.CardFill("dead")
+            border = _G.Theme.BorderColor("dead")
             rail = color.greyRailDim
-            nameCol = color.textQuiet
-            typeCol = color.textFaint
+            nameCol = Ink(color.textQuiet)
+            typeCol = Ink(color.textFaint)
             typeTxt = "DEFEATED"
         end
 
         self.fill:SetBackColor(fill)
+        self.moraleTrack:SetBackColor(_G.Theme.TrackColor(state == "target"))
+        self.ccTrack:SetBackColor(_G.Theme.TrackColor(state == "target"))
         self.borderTop:SetBackColor(border)
         self.borderBottom:SetBackColor(border)
         self.borderLeft:SetBackColor(border)

@@ -105,6 +105,7 @@ _G.Theme.color = {
     swatchTeal  = Color(0.239, 0.498, 0.588),  -- #3d7f96
     swatchBrass = Color(0.561, 0.478, 0.294),  -- #8f7a4b
     swatchPale  = Color(0.894, 0.906, 0.961),  -- #e4e7f5
+    swatchInk   = Color(0.031, 0.035, 0.055),  -- #08090e  near-black card background
 
 }
 
@@ -277,6 +278,188 @@ function _G.Theme.CardMetrics()
 
 end
 
+---------------------------------------------------------------------------------------------------
+-- card colors
+--
+-- the card's fill is a user setting (Appearance ▸ Card background), and every other fill the card
+-- can take — hover, target, defeated, CC breaking — is a step away from it. rather than ask the
+-- user to pick five colors, they pick the one and the rest are derived here.
+--
+-- while the setting is still the design's own #1c1e2b the derived values are bypassed and the
+-- handoff tokens are returned verbatim, so the default look stays pixel-exact.
+
+local White = Color(1, 1, 1)
+local Black = Color(0, 0, 0)
+
+-- t of the way from a to b
+function _G.Theme.Mix(a, b, t)
+
+    return Color(
+        a.R + (b.R - a.R) * t,
+        a.G + (b.G - a.G) * t,
+        a.B + (b.B - a.B) * t
+    )
+
+end
+
+-- perceived brightness, 0-1 — decides whether the card is carrying light or dark text
+function _G.Theme.Luminance(color)
+
+    return (color.R * 0.3) + (color.G * 0.59) + (color.B * 0.11)
+
+end
+
+local function Same(a, b)
+
+    return math.abs(a.R - b.R) < 0.005
+       and math.abs(a.G - b.G) < 0.005
+       and math.abs(a.B - b.B) < 0.005
+
+end
+
+local function SettingColor(t, fallback)
+
+    if t == nil then return fallback end
+
+    return Color(t.r, t.g, t.b)
+
+end
+
+-- the card's fill at rest, as the user has set it
+function _G.Theme.BaseColor()
+
+    return SettingColor(_G.Settings and _G.Settings.color_card, _G.Theme.color.card)
+
+end
+
+-- the frame and rail color of a targeted card
+function _G.Theme.TargetColor()
+
+    return SettingColor(_G.Settings and _G.Settings.color_targeted, _G.Theme.color.accent)
+
+end
+
+-- state = "rest" | "hover" | "target" | "dead" | "warn"
+function _G.Theme.CardFill(state)
+
+    local color = _G.Theme.color
+    local base  = _G.Theme.BaseColor()
+    local stock = Same(base, color.card)
+
+    if state == "hover" then
+
+        if stock then return color.cardHover end
+
+        -- lifting a light card by lightening it further has nowhere to go, so hover moves whichever
+        -- way the card has room
+        if _G.Theme.IsLightCard() then
+            return _G.Theme.Mix(base, Black, 0.05)
+        end
+
+        return _G.Theme.Mix(base, White, 0.022)
+
+    elseif state == "target" then
+
+        local target = _G.Theme.TargetColor()
+        if stock and Same(target, color.accent) then return color.cardTarget end
+        return _G.Theme.Mix(base, target, 0.13)
+
+    elseif state == "dead" then
+
+        if stock then return color.cardDead end
+
+        -- half the colour drained out, then darkened a shade
+        local lum = _G.Theme.Luminance(base)
+        return _G.Theme.Mix(_G.Theme.Mix(base, Color(lum, lum, lum), 0.5), Black, 0.15)
+
+    elseif state == "warn" then
+
+        if stock then return color.cardWarn end
+        return _G.Theme.Mix(base, color.redLine, 0.22)
+
+    end
+
+    return base
+
+end
+
+-- the card's border at rest, and the quieter one a defeated card takes
+function _G.Theme.BorderColor(state)
+
+    local color = _G.Theme.color
+    local base  = _G.Theme.BaseColor()
+
+    if Same(base, color.card) then
+        if state == "dead"  then return color.lineDead   end
+        if state == "hover" then return color.lineStrong end
+        return color.line
+    end
+
+    -- a light card needs a darker frame than a dark one, so the border is a step further from the
+    -- fill in whichever direction has room
+    local away = _G.Theme.IsLightCard() and Black or White
+
+    if state == "dead" then
+        return _G.Theme.Mix(_G.Theme.CardFill("dead"), away, 0.12)
+    elseif state == "hover" then
+        return _G.Theme.Mix(base, away, 0.32)
+    end
+
+    return _G.Theme.Mix(base, away, 0.2)
+
+end
+
+-- the empty part of a bar. always darker than the card it sits on, so a drained bar reads as empty
+function _G.Theme.TrackColor(isTarget)
+
+    local color = _G.Theme.color
+    local base  = _G.Theme.BaseColor()
+
+    if Same(base, color.card) then
+        return isTarget and color.ground or color.barTrack
+    end
+
+    -- a light card can't sink a track by darkening a near-black one, so the amount scales with how
+    -- much room there is below the fill
+    local depth = _G.Theme.IsLightCard() and 0.65 or 0.4
+
+    return _G.Theme.Mix(base, Black, isTarget and (depth - 0.1) or depth)
+
+end
+
+-- true while the card background is light enough that the design's light text would disappear
+function _G.Theme.IsLightCard()
+
+    return _G.Theme.Luminance(_G.Theme.BaseColor()) > 0.5
+
+end
+
+-- any text or glyph drawn on the card passes through here. on the default dark card it is the
+-- identity; on a light one each token is re-lit to the brightness it would need on that card,
+-- keeping its hue and its place in the hierarchy — the CC seconds stay violet, a low morale figure
+-- stays red, and the quiet type line stays quieter than the name.
+function _G.Theme.Ink(color)
+
+    if not _G.Theme.IsLightCard() then
+        return color
+    end
+
+    local lum = _G.Theme.Luminance(color)
+    if lum < 0.02 then return color end
+
+    -- the brightest tokens end up the darkest, since those are the ones carrying the most weight
+    local scale = (0.85 - (lum * 0.75)) / lum
+
+    local function channel(value)
+        value = value * scale
+        if value > 1 then return 1 end
+        return value
+    end
+
+    return Color(channel(color.R), channel(color.G), channel(color.B))
+
+end
+
 -- a "#rrggbb" string for a token, for use in label markup — Turbine labels take one ForeColor,
 -- so inline two-tone text (BLINDING FLASH · 68%) has to go through markup
 function _G.Theme.Markup(color)
@@ -294,13 +477,15 @@ end
 -- 1 = player / fellowship, 2 = object / item, anything else = NPC
 function _G.Theme.RailColor(entityType)
 
+    local s = _G.Settings
+
     if entityType == 1 then
-        return _G.Theme.color.green
+        return SettingColor(s and s.color_player, _G.Theme.color.green)
     elseif entityType == 2 then
-        return _G.Theme.color.greyRailDim
+        return SettingColor(s and s.color_item, _G.Theme.color.greyRailDim)
     end
 
-    return _G.Theme.color.greyRail
+    return SettingColor(s and s.color_npc, _G.Theme.color.greyRail)
 
 end
 
@@ -308,10 +493,10 @@ end
 function _G.Theme.NameColor(entityType)
 
     if entityType == 2 then
-        return _G.Theme.color.textDim
+        return _G.Theme.Ink(_G.Theme.color.textDim)
     end
 
-    return _G.Theme.color.text
+    return _G.Theme.Ink(_G.Theme.color.text)
 
 end
 

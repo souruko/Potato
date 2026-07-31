@@ -13,6 +13,7 @@ A complete visual redesign of the plugin.
 - Numbers are set with minus and plus buttons you can hold down, rather than typed into a box.
 - Custom CC skills only take up space once you have added them, and each one has a button to remove it.
 - Colours can be picked from a row of presets or set to an exact value.
+- The tracker background is one of those colours. Hovered, targeted, defeated and CC-warning cards shade themselves from whichever background you pick, and the text on a card darkens by itself if you choose a light one.
 - Live previews on the Layout, Combat and Appearance tabs, so you can see a setting take effect without closing the panel.
 
 ### Changed
@@ -24,6 +25,7 @@ A complete visual redesign of the plugin.
 - The drag handle is a small strip above the trackers, and can be hidden once you are happy with the position.
 - Trackers sit closer together by default.
 - Morale that has stopped updating fades to grey after five seconds and stays there, instead of fading gradually over fifteen.
+- Colours you had set in an earlier version are reset once to the new palette, since the old ones were picked for the old look.
 
 ### Removed
 - The CC bar height setting. The bars are now part of the card's fixed height.

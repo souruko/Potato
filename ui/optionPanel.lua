@@ -39,13 +39,8 @@ local CC_MAX_CUSTOM = 5
 
 -- the exact-colour editor on the Appearance pane, which opens over the space between the swatch
 -- rows and the previews
-local EXACT_TOP = 170
+local EXACT_TOP = 200
 local EXACT_H   = 102
-
-local function SettingColor(t)
-    if t == nil then return _G.Theme.color.greyRail end
-    return Turbine.UI.Color(t.r, t.g, t.b)
-end
 
 ---------------------------------------------------------------------------------------------------
 
@@ -218,19 +213,8 @@ function OptionPanel:RefreshPreviews()
 
     for _, entry in ipairs(self.previews) do
 
+        -- SetState reads the Appearance pane's colors out of Theme, so a repaint is all it takes
         entry.widget:SetState(entry.state, entry.bars)
-
-        -- the rail carries whatever colors the Appearance pane has been given
-        if entry.state == "player" then
-            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_player))
-        elseif entry.state == "object" then
-            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_item))
-        elseif entry.state == "target" then
-            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_targeted))
-        elseif entry.state == "npc" then
-            entry.widget.rail:SetBackColor(SettingColor(_G.Settings.color_npc))
-        end
-
         entry.widget.type:SetVisible(_G.Settings.show_type_line ~= false)
 
     end
@@ -908,6 +892,7 @@ local SWATCH_SETS = {
     { key = "color_npc",      label = "NPCs",        tokens = { "greyRail", "swatchTeal", "swatchBrass", "green" } },
     { key = "color_item",     label = "Objects",     tokens = { "greyRailDim", "swatchTeal", "swatchBrass", "greyRail" } },
     { key = "color_targeted", label = "Your target", tokens = { "accent", "goldText", "red", "swatchPale" } },
+    { key = "color_card",     label = "Background",  tokens = { "card", "surfaceSunk", "surface", "swatchInk" } },
 }
 
 function OptionPanel:BuildAppearancePane()
@@ -953,9 +938,11 @@ function OptionPanel:BuildAppearancePane()
 
     end
 
-    y = y + 6
+    y = y + 4
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W, "Background is the card fill; the other states shade from it.")
+    y = y + 14
     _G.Widgets.Help(pane, PAD_X, y, BODY_W, "\"+\" opens the 0-255 boxes if you want an exact value.")
-    y = y + 24
+    y = y + 22
 
     _G.Widgets.Divider(pane, PAD_X, y, BODY_W)
     y = y + 14
@@ -1010,6 +997,7 @@ function OptionPanel:BuildAppearancePane()
         _G.Settings.color_npc      = { r = _G.Theme.color.greyRail.R,    g = _G.Theme.color.greyRail.G,    b = _G.Theme.color.greyRail.B }
         _G.Settings.color_item     = { r = _G.Theme.color.greyRailDim.R, g = _G.Theme.color.greyRailDim.G, b = _G.Theme.color.greyRailDim.B }
         _G.Settings.color_targeted = { r = _G.Theme.color.accent.R,      g = _G.Theme.color.accent.G,      b = _G.Theme.color.accent.B }
+        _G.Settings.color_card     = { r = _G.Theme.color.card.R,        g = _G.Theme.color.card.G,        b = _G.Theme.color.card.B }
         _G.Settings.name_outline = true
         _G.Settings.show_type_line = true
 
