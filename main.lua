@@ -2,6 +2,9 @@ import "Turbine.Gameplay"
 import "Turbine.UI"
 import "Turbine.UI.Lotro"
 
+import "Potato.Class"
+import "Potato.Type"
+
 import "Potato.ui.theme"
 import "Potato.ui.potatoWindow"
 import "Potato.ui.optionPanel"

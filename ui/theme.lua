@@ -173,10 +173,11 @@ _G.Theme.preset = {
         nameLeft    = 14,
         nameTop     = 7,
         nameHeight  = 20,
+        nameCharWidth = 7,    -- rough px per character, only used if measuring fails
         typeLine    = true,
         typeTop     = 30,
         typeHeight  = 12,
-        strikeTop   = 20,
+        strikeTop   = 16,   -- across the middle of the name, not under it
         ccTop       = 26,   -- the seconds, right-aligned
         ccHeight    = 16,
         moraleTop   = 28,   -- the percentage, right-aligned, when no CC is running
@@ -192,10 +193,11 @@ _G.Theme.preset = {
         nameLeft    = 11,
         nameTop     = 5,
         nameHeight  = 18,
+        nameCharWidth = 6,
         typeLine    = false,
         typeTop     = nil,
         typeHeight  = 0,
-        strikeTop   = 17,
+        strikeTop   = 13,
         ccTop       = 4,
         ccHeight    = 16,
         moraleTop   = 6,
@@ -231,6 +233,107 @@ _G.Theme.metrics = {
 ---------------------------------------------------------------------------------------------------
 -- helpers
 
+-- text measuring
+--
+-- the API has no "how wide is this string" call, so this uses the usual trick: a throwaway label,
+-- and a round trip through stretch mode 2 (size to content) and back, which leaves the label at
+-- its natural size. the client wraps that label at its spaces and hyphens whatever width we give
+-- it, so a whole name measures only as wide as its longest piece — pieces are therefore measured
+-- one at a time and added up. everything returns nil if the client won't play along at all.
+
+local MEASURE_CAP = 1000  -- primed width; a result still sitting at it means stretching did nothing
+
+local measureLabel = nil
+
+local function MeasurePiece(font, text)
+
+    if text == nil or text == "" then
+        return 0
+    end
+
+    local ok = pcall(function()
+        if measureLabel == nil then
+            measureLabel = Turbine.UI.Label()
+        end
+        measureLabel:SetMultiline(false)
+        measureLabel:SetFont(font)
+        measureLabel:SetText(text)
+        measureLabel:SetSize(MEASURE_CAP, 64)
+        measureLabel:SetStretchMode(2)
+        measureLabel:SetStretchMode(0)
+    end)
+
+    if not ok then
+        return nil
+    end
+
+    local width = measureLabel:GetWidth()
+    if width == nil or width <= 0 or width >= MEASURE_CAP then
+        return nil
+    end
+
+    return width
+
+end
+
+-- a word split after every hyphen, since that is the other place the label will break
+local function Pieces(word)
+
+    local pieces = {}
+    local from = 1
+
+    while true do
+
+        local dash = string.find(word, "-", from, true)
+
+        if dash == nil then
+            table.insert(pieces, string.sub(word, from))
+            return pieces
+        end
+
+        table.insert(pieces, string.sub(word, from, dash))
+        from = dash + 1
+
+    end
+
+end
+
+function _G.Theme.TextWidth(font, text)
+
+    if text == nil or text == "" then
+        return 0
+    end
+
+    -- a space is about as wide as a narrow letter in Verdana, and can't be measured on its own:
+    -- the label trims it away
+    local spaceWidth = MeasurePiece(font, "i")
+
+    local total, gaps = 0, -1
+
+    for word in string.gmatch(text, "%S+") do
+
+        gaps = gaps + 1
+
+        local pieces = Pieces(word)
+        for i = 1, #pieces do
+            local width = MeasurePiece(font, pieces[i])
+            if width == nil then
+                return nil
+            end
+            total = total + width
+        end
+
+    end
+
+    if gaps > 0 then
+        total = total + gaps * math.floor((spaceWidth or 4) * 1.13 + 0.5)
+    end
+
+    -- the whole string in one go, in case this client never wrapped and measures it outright
+    return math.max(total, MeasurePiece(font, text) or 0)
+
+end
+
 -- the card metrics in force, resolved from Settings.size_preset. "custom" keeps the comfortable
 -- preset's typography and takes its dimensions from the user's own width / height / spacing.
 -- both the card and the window that stacks them size themselves from this.
@@ -254,6 +357,8 @@ function _G.Theme.CardMetrics()
             m.nameFont = _G.Theme.font.nameCompact
             m.nameLeft = 11
             m.nameTop  = 5
+            m.strikeTop = 13
+            m.nameCharWidth = 6
             m.ccTop    = 4
             m.moraleTop = 6
         end

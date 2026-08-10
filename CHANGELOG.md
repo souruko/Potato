@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1] — 2026-08-10
+
+### Changed
+- The plugin now brings everything it needs to start up with it, rather than relying on files another plugin may have loaded first.
+
+### Fixed
+- The line through a defeated target's name now matches the length of the name and sits across it, instead of being a fixed-length line below it.
+
 ## [2.0.0] — 2026-07-31
 
 A complete visual redesign of the plugin.

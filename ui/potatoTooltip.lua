@@ -681,8 +681,18 @@ function PotatoTooltip:ApplySettings()
             or  Turbine.UI.FontStyle.Outline
     )
 
+    -- the strike spans the name itself, so it has to be measured. failing that it's estimated from
+    -- the character count — accented letters are two bytes each, so they aren't counted twice.
+    -- either way a long name is clipped by its label, so the line stops where the text does
+    local nameWidth = _G.Theme.TextWidth(m.nameFont, self.name)
+
+    if nameWidth == nil then
+        local _, continuationBytes = string.gsub(self.name, "[\128-\191]", "")
+        nameWidth = (string.len(self.name) - continuationBytes) * m.nameCharWidth
+    end
+
     self.strikeLine:SetPosition(m.nameLeft, m.strikeTop)
-    self.strikeLine:SetSize(math.min(100, textWidth), 1)
+    self.strikeLine:SetSize(math.min(math.floor(nameWidth), textWidth), 1)
 
     if m.typeLine then
         self.typeLabel:SetPosition(m.nameLeft, m.typeTop)
