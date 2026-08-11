@@ -16,9 +16,72 @@ import "Potato.targetChanged"
 ---------------------------------------------------------------------------------------------------
 -- fake savefile
 
+-- German and French clients serialise numbers with a comma decimal separator, which the savefile
+-- reader then cannot parse back — the settings come out mangled or the load fails outright. The
+-- standard workaround (same one FervourFocus, LootLogs and TbdBars use) is to write every number as
+-- a string and turn it back into a number on load, so no number ever goes through the serialiser.
+local function IsEuroClient()
+    return Turbine.Shell.IsCommand("hilfe") or Turbine.Shell.IsCommand("aide")
+end
+
+local function ConvertToEuro(dataRaw)
+    if type(dataRaw) ~= "table" then
+        return type(dataRaw) == "number" and tostring(dataRaw) or dataRaw
+    end
+    -- Turbine.UI.Color and friends are left alone: they are class instances, not settings data, and
+    -- walking them with pairs() would flatten them into something the game can no longer use.
+    if getmetatable(dataRaw) ~= nil then
+        return dataRaw
+    end
+    local newData = {}
+    for i, myData in pairs(dataRaw) do
+        local tempIndex = type(i) == "number" and tostring(i) or i
+        local tempData
+        if type(myData) == "table" then
+            tempData = ConvertToEuro(myData)
+        elseif type(myData) == "number" then
+            tempData = tostring(myData)
+        else
+            tempData = myData
+        end
+        newData[tempIndex] = tempData
+    end
+    return newData
+end
+
+local function ConvertFromEuro(dataRaw)
+    if type(dataRaw) ~= "table" then
+        local n = tonumber(dataRaw)
+        return n ~= nil and n or dataRaw
+    end
+    if getmetatable(dataRaw) ~= nil then
+        return dataRaw
+    end
+    local newData = {}
+    for i, myData in pairs(dataRaw) do
+        local tempIndex = tonumber(i)
+        if tempIndex == nil then tempIndex = i end
+        local tempData
+        if type(myData) == "table" then
+            tempData = ConvertFromEuro(myData)
+        else
+            tempData = tonumber(myData)
+            if tempData == nil then tempData = myData end
+        end
+        newData[tempIndex] = tempData
+    end
+    return newData
+end
+
+local euroClient = IsEuroClient()
+
 _G.SaveSettings = function ()
-    Turbine.PluginData.Save(Turbine.DataScope.Character, "potatoSaveFile", _G.Settings, nil)
-    Turbine.PluginData.Save(Turbine.DataScope.Account, "potatoSaveFile", _G.Settings, nil)
+    local data = _G.Settings
+    if euroClient then
+        data = ConvertToEuro(_G.Settings)
+    end
+    Turbine.PluginData.Save(Turbine.DataScope.Character, "potatoSaveFile", data, nil)
+    Turbine.PluginData.Save(Turbine.DataScope.Account, "potatoSaveFile", data, nil)
 end
 
 _G.Settings = Turbine.PluginData.Load( Turbine.DataScope.Character, "potatoSaveFile" , nil)
@@ -26,6 +89,12 @@ _G.Settings = Turbine.PluginData.Load( Turbine.DataScope.Character, "potatoSaveF
 if _G.Settings == nil then
 _G.Settings = Turbine.PluginData.Load( Turbine.DataScope.Account, "potatoSaveFile" , nil)
 
+end
+
+-- runs on savefiles written before this fix too: numbers that are already numbers survive tonumber
+-- unchanged, and strings that are not numbers ("name", "comfortable") fall back to themselves.
+if euroClient and _G.Settings ~= nil then
+    _G.Settings = ConvertFromEuro(_G.Settings)
 end
 
 if _G.Settings == nil then

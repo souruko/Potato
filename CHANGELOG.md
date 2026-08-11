@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.2] — 2026-08-11
+
+### Fixed
+- On German and French game clients, your settings are now saved in a format the game can read back again. Previously they could come back wrong or fall back to the defaults after a reload.
+
 ## [2.0.1] — 2026-08-10
 
 ### Changed
