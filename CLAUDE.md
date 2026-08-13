@@ -28,7 +28,7 @@ handoff (`HANDOFF.md` — final colours, sizes and copy), the two design canvase
 
 **`Potato.plugin`** — XML manifest declaring the entry package (`Potato.main`) and configuration apartment.
 
-**`main.lua`** — Entry point. Loads settings from `Turbine.PluginData` (character scope, falls back to account scope, then defaults). Defines the `_G.Settings` table and `_G.SaveSettings()`. Instantiates the two top-level globals: `Potato` (a `ui.PotatoWindow`) and `Options` (a `ui.OptionPanel`). Also registers `plugin.GetOptionsPanel` so the game shows the settings panel in the plugin manager.
+**`main.lua`** — Entry point. Loads settings from `Turbine.PluginData` (character scope, falls back to account scope, then defaults). Defines the `_G.Settings` table, `_G.NormaliseSettings()` (defaults + migrations, re-runnable on any settings table) and `_G.SaveSettings()`. Account scope is the user-managed "global" copy: `_G.SaveGlobalSettings()` / `_G.LoadGlobalSettings()` / `_G.HasGlobalSettings()` drive the options panel's Global tab, and `SaveSettings` only auto-writes account scope while no global copy existed at load time. Instantiates the two top-level globals: `Potato` (a `ui.PotatoWindow`) and `Options` (a `ui.OptionPanel`). Also registers `plugin.GetOptionsPanel` so the game shows the settings panel in the plugin manager.
 
 **`chatParse.lua`** — Hooks `Turbine.Chat.Received`. Filters to `PlayerCombat` and `Death` chat types. For defeat events, calls `Potato:DefeatTooltip(name)`. For specific CC skills (Blinding Flash, Riddle, Distracting Shot, Thrum of the Sea, Sign of Power: Righteousness), calls `Potato:DisplayDuration(iconId, seconds, name)`. Uses `ParseCombatChat()` — a large pattern-matching function — to parse combat log text into typed event codes (1=damage, 3=heal, 9=defeat, 17=buff, etc.).
 
@@ -38,7 +38,7 @@ handoff (`HANDOFF.md` — final colours, sizes and copy), the two design canvase
 
 **`ui/potatoTooltip.lua`** — `PotatoTooltip` (extends `Turbine.UI.Control`). One tracker per pinned entity. Shows a frame, an `EntityControl` (game's built-in portrait), a name label, a close button, and optionally a CC duration icon + shrinking progress bar. `Update()` is called every game tick while a duration is active. Colors are driven by entity type and live/dead/targeted state from `_G.Settings`.
 
-**`ui/optionPanel.lua`** — `OptionPanel` shown in the plugin manager. Controls sort mode, horizontal/reverse fill, dimensions, keybinding assignment (via a fullscreen overlay that captures a keypress), highlight-defeated, and display-durations toggles. All changes write immediately to `_G.Settings` and call `_G.SaveSettings()`.
+**`ui/optionPanel.lua`** — `OptionPanel` shown in the plugin manager. Controls sort mode, horizontal/reverse fill, dimensions, keybinding assignment (via a fullscreen overlay that captures a keypress), highlight-defeated, and display-durations toggles. All changes write immediately to `_G.Settings` and call `_G.SaveSettings()`. The Global tab saves/loads the account-wide copy; because the panel is built once and kept, loading it calls `OptionPanel:RefreshFromSettings()`, which must be extended whenever a new control is added to a pane.
 
 ## Turbine API notes
 

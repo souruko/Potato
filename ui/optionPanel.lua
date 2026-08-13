@@ -30,7 +30,9 @@ local FOOT_H    = 50
 local CONTENT_H = PANEL_H - FOOT_H
 local BODY_W    = PANE_W - (PAD_X * 2)
 
-local TABS = { "Layout", "Keybindings", "Combat", "CC timers", "Appearance" }
+local TABS = { "Layout", "Keybindings", "Combat", "CC timers", "Appearance", "Global" }
+
+local GLOBAL_TAB = 6
 
 -- a CC row and the number of custom ones that fit above the footer. the pane doesn't scroll, so the
 -- add button stops offering new slots once the space is used up.
@@ -61,6 +63,7 @@ function OptionPanel:Constructor()
     self:BuildCombatPane()
     self:BuildCCPane()
     self:BuildAppearancePane()
+    self:BuildGlobalPane()
 
     self:SelectTab(1)
 
@@ -126,7 +129,7 @@ function OptionPanel:BuildRail()
     )
     _G.Widgets.Label(
         rail, 12, footTop + 22, RAIL_W - 20, 30,
-        "Falls back to account",
+        "Share them on Global",
         _G.Theme.font.help, color.textQuiet,
         Turbine.UI.ContentAlignment.TopLeft
     )
@@ -146,6 +149,12 @@ function OptionPanel:SelectTab(index)
 
     for i, pane in ipairs(self.panes) do
         pane:SetVisible(i == index)
+    end
+
+    -- the global copy can be written by another character while this panel sits open, so its state
+    -- is read again every time the tab is opened rather than once at build time
+    if index == GLOBAL_TAB then
+        self:RefreshGlobalStatus()
     end
 
 end
@@ -1103,6 +1112,213 @@ function OptionPanel:CommitExactColor()
 
     self:SyncSwatchSelection()
     self:Commit()
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- pane 6 — Global
+--
+-- settings live per character. the global copy is the account-wide savefile, which used to be
+-- overwritten on every change and is now only written from here — so it can hold a deliberate set
+-- of settings to hand to every character rather than whatever the last one to touch a setting had.
+
+function OptionPanel:BuildGlobalPane()
+
+    local pane = self:NewPane("Global")
+    local y = PAD_TOP + 34
+
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Settings are saved for each character on its own. The global copy is a")
+    _G.Widgets.Help(pane, PAD_X, y + 13, BODY_W,
+        "shared set kept on the side: save it here once, then load it on your")
+    _G.Widgets.Help(pane, PAD_X, y + 26, BODY_W,
+        "other characters to give them all the same setup.")
+    y = y + 48
+
+    _G.Widgets.Divider(pane, PAD_X, y, BODY_W)
+    y = y + 16
+
+    local saveButton = _G.Widgets.Button(pane, PAD_X, y, "Save to global", function()
+        self:SaveGlobal()
+    end)
+
+    local saveHelpX = PAD_X + saveButton.width + 16
+    _G.Widgets.Help(pane, saveHelpX, y + 2, BODY_W - saveHelpX,
+        "Copies this character's settings")
+    _G.Widgets.Help(pane, saveHelpX, y + 15, BODY_W - saveHelpX,
+        "over the global copy.")
+    y = y + 36
+
+    local loadButton = _G.Widgets.Button(pane, PAD_X, y, "Load from global", function()
+        self:AskLoadGlobal()
+    end)
+
+    local loadHelpX = PAD_X + loadButton.width + 16
+    _G.Widgets.Help(pane, loadHelpX, y + 2, BODY_W - loadHelpX,
+        "Replaces this character's settings")
+    _G.Widgets.Help(pane, loadHelpX, y + 15, BODY_W - loadHelpX,
+        "with the global copy.")
+    y = y + 40
+
+    -- loading throws away whatever this character had, and there is no undo, so it asks first
+    self.globalConfirm = Turbine.UI.Control()
+    self.globalConfirm:SetParent(pane)
+    self.globalConfirm:SetPosition(PAD_X, y)
+    self.globalConfirm:SetSize(BODY_W, 76)
+    self.globalConfirm:SetVisible(false)
+
+    _G.Widgets.Box(self.globalConfirm, 0, 0, BODY_W, 76, _G.Theme.color.card, _G.Theme.color.line)
+
+    _G.Widgets.Label(self.globalConfirm, 14, 10, BODY_W - 28, 14, "LOAD FROM GLOBAL",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+
+    _G.Widgets.Help(self.globalConfirm, 14, 28, BODY_W - 28,
+        "This character's settings are replaced and cannot be brought back.")
+
+    _G.Widgets.Button(self.globalConfirm, 14, 44, "Replace", function()
+        self.globalConfirm:SetVisible(false)
+        self:LoadGlobal()
+    end)
+
+    _G.Widgets.Button(self.globalConfirm, 110, 44, "Cancel", function()
+        self.globalConfirm:SetVisible(false)
+    end, true)
+
+    y = y + 86
+
+    self.globalStatus = _G.Widgets.Label(pane, PAD_X, y, BODY_W, 20, "",
+        _G.Theme.font.body, _G.Theme.color.textMuted)
+
+    _G.Widgets.Rect(pane, 0, CONTENT_H, PANE_W, 1, _G.Theme.color.line)
+
+    _G.Widgets.Help(pane, PAD_X, CONTENT_H + 12, BODY_W,
+        "Both buttons act straight away - this tab has no Apply. Numbers you")
+    _G.Widgets.Help(pane, PAD_X, CONTENT_H + 25, BODY_W,
+        "changed on another tab count only once you Apply them there.")
+
+end
+
+function OptionPanel:RefreshGlobalStatus(message)
+
+    if self.globalStatus == nil then return end
+
+    if message ~= nil then
+        self.globalStatus:SetText(message)
+        self.globalStatus:SetForeColor(_G.Theme.color.accentLight)
+        return
+    end
+
+    self.globalStatus:SetForeColor(_G.Theme.color.textMuted)
+
+    if _G.HasGlobalSettings() then
+        self.globalStatus:SetText("A global copy is saved.")
+    else
+        self.globalStatus:SetText("No global copy saved yet.")
+    end
+
+end
+
+function OptionPanel:SaveGlobal()
+
+    self.globalConfirm:SetVisible(false)
+
+    _G.SaveSettings()
+    _G.SaveGlobalSettings()
+
+    self:RefreshGlobalStatus("Saved. Load it on your other characters.")
+
+end
+
+function OptionPanel:AskLoadGlobal()
+
+    if not _G.HasGlobalSettings() then
+        self:RefreshGlobalStatus("There is no global copy yet - save one first.")
+        return
+    end
+
+    self.globalConfirm:SetVisible(true)
+
+end
+
+function OptionPanel:LoadGlobal()
+
+    if not _G.LoadGlobalSettings() then
+        self:RefreshGlobalStatus("There is no global copy yet - save one first.")
+        return
+    end
+
+    self:RefreshFromSettings()
+    Potato:ApplySettings()
+    self:RefreshPreviews()
+
+    self:RefreshGlobalStatus("Loaded. This character now matches the global copy.")
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- every control back to what is in Settings
+--
+-- the panel is built once and kept, so loading the global copy has to push the new values into the
+-- controls by hand — otherwise the panel would keep showing the settings that were just replaced.
+
+function OptionPanel:RefreshFromSettings()
+
+    local s = _G.Settings
+
+    -- Layout
+    self.dragHandleCheck:SetChecked(s.show_drag_handle)
+    self.dismissCheck:SetChecked(s.show_dismiss)
+
+    local presetIndex = 2
+    if s.size_preset == "compact" then presetIndex = 1
+    elseif s.size_preset == "custom" then presetIndex = 3 end
+    self.sizeSegment:SetSelected(presetIndex)
+
+    self.directionSegment:SetSelected(s.horizontal and 2 or 1)
+    self.reverseFillCheck:SetChecked(s.reverseFill)
+    self.orderSegment:SetSelected((s.sort_order == "name") and 2 or 1)
+
+    self.widthStepper:SetValue(s.width)
+    self.heightStepper:SetValue(s.tooltip_height)
+    self.gapStepper:SetValue(s.tooltip_spacing)
+    self.maxStepper:SetValue(s.max_tooltip_count)
+    self:UpdateCustomEnabled()
+
+    -- Keybindings
+    self.addKeyCap:SetText(_G.Keys.Format(s.keybinding_add))
+    if s.use_clear_keybinding == false then
+        self.clearKeyCap:SetText("unbound")
+    else
+        self.clearKeyCap:SetText(_G.Keys.Format(s.keybinding_clear))
+    end
+    self.onlyDeadCheck:SetChecked(s.only_clear_dead)
+
+    -- Combat
+    self.dimDefeatedCheck:SetChecked(s.highlight_defeated)
+    self.defeatDelayStepper:SetValue(s.defeat_auto_remove_delay)
+    self.moraleCheck:SetChecked(s.display_morale)
+    self.moraleWarnStepper:SetValue(s.morale_warn_pct)
+    self.moraleNumberCheck:SetChecked(s.morale_show_number)
+    self.moraleStaleCheck:SetChecked(s.morale_grey_stale)
+
+    -- CC timers
+    self.ccEnabledCheck:SetChecked(s.display_durations)
+    self.ccWarnStepper:SetValue(s.cc_warning_threshold)
+
+    for _, skill in ipairs(CC_SKILLS) do
+        local saved = s.cc_skills[skill.key]
+        self.ccChecks[skill.key]:SetChecked(saved.enabled)
+        self.ccSteppers[skill.key]:SetValue(saved.duration)
+    end
+
+    self:RebuildCustomRows()
+
+    -- Appearance
+    self.nameTextSegment:SetSelected((s.name_outline == false) and 2 or 1)
+    self.typeLineCheck:SetChecked(s.show_type_line)
+    self.exactBox:SetVisible(false)
+    self.exactSet = nil
+    self:SyncSwatchSelection()
 
 end
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.3] — 2026-08-13
+
+### Added
+- A **Global** tab in the settings, for sharing one setup across your characters. *Save to global* keeps a copy of the settings you are using now; *Load from global* puts that copy on whichever character you are playing.
+
+### Changed
+- The shared copy is no longer overwritten every time you change a setting. It used to be, so whichever character you last touched a setting on decided what every new character started with. It now only changes when you press *Save to global*.
+- If you have never saved a shared copy, nothing changes for you: a fresh install still passes its settings on to your next character.
+
 ## [2.0.2] — 2026-08-11
 
 ### Fixed

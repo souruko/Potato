@@ -75,58 +75,170 @@ end
 
 local euroClient = IsEuroClient()
 
-_G.SaveSettings = function ()
-    local data = _G.Settings
-    if euroClient then
-        data = ConvertToEuro(_G.Settings)
+---------------------------------------------------------------------------------------------------
+-- the two savefiles
+--
+-- character scope is the one the plugin reads and writes as you go. account scope is the "global"
+-- copy: a preset you hand to every character, written and read on demand from the Global tab of the
+-- options panel.
+--
+-- it used to be written on every save, as a fallback for a character that had no file of its own.
+-- that made it impossible to keep a deliberate set of shared settings, since the last character to
+-- change anything overwrote it. it is now only auto-written while no global copy exists at all, so
+-- a fresh install still passes its settings to the next character; once there is one, only "Save to
+-- global" replaces it.
+
+local DERIVED_KEYS = {
+    "tooltip_color_player",
+    "tooltip_color_npc",
+    "tooltip_color_item",
+    "tooltip_targeted_color",
+    "tooltip_defeated_color",
+    "tooltip_defeated_text_color",
+}
+
+-- class instances (Turbine.UI.Color and friends) are handed over as they are, same as ConvertToEuro
+-- does: copying them field by field would flatten them into something the game can no longer use.
+local function DeepCopy(value)
+
+    if type(value) ~= "table" or getmetatable(value) ~= nil then
+        return value
     end
-    Turbine.PluginData.Save(Turbine.DataScope.Character, "potatoSaveFile", data, nil)
-    Turbine.PluginData.Save(Turbine.DataScope.Account, "potatoSaveFile", data, nil)
+
+    local copy = {}
+    for key, inner in pairs(value) do
+        copy[key] = DeepCopy(inner)
+    end
+
+    return copy
+
 end
 
-_G.Settings = Turbine.PluginData.Load( Turbine.DataScope.Character, "potatoSaveFile" , nil)
+-- what actually goes to disk: the settings minus the Turbine.UI.Color objects built from them,
+-- which are rebuilt on every load anyway and are not savefile data. a copy all the way down, so the
+-- payload can be kept as the in-memory global copy without aliasing the live settings.
+local function SettingsPayload()
 
-if _G.Settings == nil then
-_G.Settings = Turbine.PluginData.Load( Turbine.DataScope.Account, "potatoSaveFile" , nil)
+    local data = DeepCopy(_G.Settings)
+
+    for _, key in ipairs(DERIVED_KEYS) do
+        data[key] = nil
+    end
+
+    return data
 
 end
 
--- runs on savefiles written before this fix too: numbers that are already numbers survive tonumber
--- unchanged, and strings that are not numbers ("name", "comfortable") fall back to themselves.
-if euroClient and _G.Settings ~= nil then
-    _G.Settings = ConvertFromEuro(_G.Settings)
+local function WriteScope(scope, data)
+
+    if euroClient then
+        data = ConvertToEuro(data)
+    end
+
+    Turbine.PluginData.Save(scope, "potatoSaveFile", data, nil)
+
 end
 
-if _G.Settings == nil then
+-- runs on savefiles written before the euro fix too: numbers that are already numbers survive
+-- tonumber unchanged, and strings that are not numbers ("name", "comfortable") fall back to
+-- themselves.
+local function LoadScope(scope)
 
-    _G.Settings = {}
-    _G.Settings.left = 500
-    _G.Settings.top = 500
-    _G.Settings.width = 200
-    _G.Settings.tooltip_height = 50
-    _G.Settings.max_tooltip_count = 5
-    _G.Settings.tooltip_spacing = 5
-    _G.Settings.highlight_defeated = true
-    _G.Settings.display_durations = true
-    _G.Settings.sort_order = "name" -- "pinned" | "name"
-    _G.Settings.keybinding_add = {}
-    _G.Settings.keybinding_add.shift = false
-    _G.Settings.keybinding_add.alt = false
-    _G.Settings.keybinding_add.ctrl = false
-    _G.Settings.keybinding_add.action = 268435706
-    _G.Settings.keybinding_clear = {}
-    _G.Settings.keybinding_clear.shift = false
-    _G.Settings.keybinding_clear.alt = false
-    _G.Settings.keybinding_clear.ctrl = true
-    _G.Settings.keybinding_clear.action = 268435482
-    _G.Settings.use_clear_keybinding = true
-    _G.Settings.only_clear_dead = false
+    local data = Turbine.PluginData.Load(scope, "potatoSaveFile", nil)
 
-    Turbine.Shell.WriteLine("potato: setup your keybinding in the plugin manager options!")
+    if data ~= nil and euroClient then
+        data = ConvertFromEuro(data)
+    end
 
+    return data
+
+end
+
+-- Turbine.PluginData.Load only reads synchronously while the plugin is loading; called any later —
+-- from the options panel, say — it insists on an async handler and throws. so the global copy is
+-- read once, here, and kept in memory: every later read of it, and every write, goes through this
+-- cache instead of touching the disk again.
+local globalCache = LoadScope(Turbine.DataScope.Account)
+
+-- decided once, when the plugin loaded, so the mirroring cannot start or stop halfway through a
+-- session: either there was a global copy to protect or there wasn't
+local mirrorToGlobal = (globalCache == nil)
+
+_G.SaveSettings = function ()
+
+    local data = SettingsPayload()
+
+    WriteScope(Turbine.DataScope.Character, data)
+
+    if mirrorToGlobal then
+        WriteScope(Turbine.DataScope.Account, data)
+        globalCache = data
+    end
+
+end
+
+-- copies this character's settings over the global one
+_G.SaveGlobalSettings = function ()
+
+    local data = SettingsPayload()
+
+    WriteScope(Turbine.DataScope.Account, data)
+    globalCache = data
+
+    return true
+
+end
+
+-- replaces this character's settings with the global ones, and keeps them
+_G.LoadGlobalSettings = function ()
+
+    if globalCache == nil then
+        return false
+    end
+
+    _G.Settings = DeepCopy(globalCache)
+
+    _G.NormaliseSettings()
     _G.SaveSettings()
 
+    return true
+
 end
+
+_G.HasGlobalSettings = function ()
+    return globalCache ~= nil
+end
+
+---------------------------------------------------------------------------------------------------
+-- defaults and migrations
+--
+-- every key is filled in only when it is missing, so this can run on a fresh install, on a savefile
+-- from any older version, and on whatever the global copy happens to hold.
+
+function _G.NormaliseSettings()
+
+if _G.Settings == nil then
+    _G.Settings = {}
+end
+
+local function default(key, value)
+    if _G.Settings[key] == nil then
+        _G.Settings[key] = value
+    end
+end
+
+default("left", 500)
+default("top", 500)
+default("width", 200)
+default("tooltip_height", 50)
+default("max_tooltip_count", 5)
+default("tooltip_spacing", 5)
+default("highlight_defeated", true)
+default("display_durations", true)
+default("keybinding_add",   { shift = false, alt = false, ctrl = false, action = 268435706 })
+default("keybinding_clear", { shift = false, alt = false, ctrl = true,  action = 268435482 })
+default("use_clear_keybinding", true)
+default("only_clear_dead", false)
 
 if _G.Settings.reverseFill == nil then
     _G.Settings.reverseFill = false
@@ -231,6 +343,29 @@ _G.Settings.tooltip_color_item          = toColor(_G.Settings.color_item)
 _G.Settings.tooltip_targeted_color      = toColor(_G.Settings.color_targeted)
 _G.Settings.tooltip_defeated_color      = Turbine.UI.Color.Gray
 _G.Settings.tooltip_defeated_text_color = Turbine.UI.Color(0.8, 0.8, 0.8)
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- boot
+--
+-- this character's own file, falling back to the global one for a character that has never saved
+
+_G.Settings = LoadScope(Turbine.DataScope.Character)
+
+local firstRun = (_G.Settings == nil and globalCache == nil)
+
+-- a copy, so a character running on the global copy does not edit the cache as it goes
+if _G.Settings == nil then
+    _G.Settings = DeepCopy(globalCache)
+end
+
+_G.NormaliseSettings()
+
+if firstRun then
+    Turbine.Shell.WriteLine("potato: setup your keybinding in the plugin manager options!")
+    _G.SaveSettings()
+end
 
 ---------------------------------------------------------------------------------------------------
 

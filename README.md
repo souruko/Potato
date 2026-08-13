@@ -64,4 +64,6 @@ Click **apply** to commit threshold and delay changes.
 
 **Appearance** — set background colors (0–255 RGB) for player, NPC, and item trackers. Click **apply colors** to commit.
 
-Settings are saved per-character and fall back to account scope when no character save exists.
+**Global** — *Save to global* copies this character's settings to the account-wide savefile; *Load from global* replaces this character's settings with that copy. Use it to give every character the same setup.
+
+Settings are saved per-character and fall back to the global (account scope) copy when no character save exists. The global copy is only written by *Save to global* — or automatically, while none exists at all, so a fresh install still hands its settings to your next character.
