@@ -562,7 +562,29 @@ function _G.Widgets.Button(parent, x, y, text, onClick, quiet)
         Turbine.UI.ContentAlignment.MiddleCenter
     )
 
+    w.enabled = true
+    w.quiet = quiet
+
+    -- a disabled button stays where it is and goes quiet rather than disappearing, so a row of
+    -- buttons never shifts about as one of them becomes available
+    function w:SetEnabled(value)
+
+        self.enabled = value and true or false
+
+        if self.enabled then
+            self.label:SetForeColor(self.quiet and _G.Theme.color.textQuiet or _G.Theme.color.accentLight)
+        else
+            self.label:SetForeColor(_G.Theme.color.textFaint)
+        end
+
+        for _, edge in ipairs({ self.top, self.bottom, self.left, self.right }) do
+            edge:SetBackColor(self.enabled and _G.Theme.color.accent or _G.Theme.color.line)
+        end
+
+    end
+
     w.control.MouseClick = function(sender, args)
+        if not w.enabled then return end
         if onClick then onClick() end
     end
 

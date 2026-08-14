@@ -1,5 +1,39 @@
+-- chatParse
+--
+-- the plugin's one hook on the combat log. Turbine.Chat.Received is a single global, so this is
+-- where a chat line is turned into something every window can act on: it parses once and then hands
+-- the result to each window in turn, since each has its own idea of which CC skills to watch, how
+-- long they last, and whether to mark a defeated target at all.
+---------------------------------------------------------------------------------------------------
 
- function Turbine.Chat.Received(sender, args)
+-- the CC skills the plugin knows about, in one table rather than the five near-identical blocks
+-- this used to be. the durations here are only the fallback: a window's own cc_skills entry is what
+-- normally decides how long the bar runs for.
+local BUILTIN_CC = {
+    { key = "blinding_flash",    needle = "hit</rgb> with Blinding Flash on ",
+      event =  1, icon = 1090541222, fallback = 30, label = "Blinding Flash" },
+    { key = "riddle",            needle = "hit</rgb> with Riddle on ",
+      event =  1, icon = 1090541257, fallback = 30, label = "Riddle" },
+    { key = "distracting_shot",  needle = "hit</rgb> with Distracting Shot on ",
+      event =  1, icon = 1091459007, fallback = 35, label = "Distracting Shot" },
+    { key = "thrum_of_the_sea",  needle = "hit</rgb> with Thrum of the Sea on ",
+      event =  1, icon = 1092830905, fallback = 25, label = "Thrum of the Sea" },
+    { key = "sop_righteousness", needle = "benefit</rgb> with Sign of Power: Righteousness on ",
+      event = 17, icon = 1090553882, fallback = 15, label = "Sign of Power: Righteousness" },
+}
+
+-- the colour markup off, and the surrounding whitespace with it, which is the shape ParseCombatChat
+-- expects
+local function Strip(message)
+
+    local text = string.gsub(message, "<rgb=#......>(.*)</rgb>", "%1")
+    text = string.gsub(text, "^%s*(.-)%s*$", "%1")
+
+    return text
+
+end
+
+function Turbine.Chat.Received(sender, args)
 
     -- filter nil massages
     if  (args.Message  == nil) then
@@ -7,104 +41,126 @@
     end
 
     -- filter by chattype
-    if 
-	args.ChatType ~= Turbine.ChatType.PlayerCombat 
+    if
+	args.ChatType ~= Turbine.ChatType.PlayerCombat
         and args.ChatType ~= Turbine.ChatType.Death then
 
         return
     end
 
-    -- "defeate" tooltips
-    if _G.Settings.highlight_defeated  then
-        if string.find(args.Message, " defeated ") then
-            local updateType,targetName = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
+    local windows = _G.PotatoWindows
 
-            if updateType == 9 and targetName ~= nil then
-                Potato:DefeatTooltip(targetName)
-                return
-            end
-        end
+    if windows == nil then
+        return
     end
 
-    if _G.Settings.display_durations then
-        -- lm cc duration
-        if string.find(args.Message, "hit</rgb> with Blinding Flash on ") then
-            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.blinding_flash
-            if sk == nil or sk.enabled then
-                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1090541222, sk and sk.duration or 30, targetName, "Blinding Flash")
-                    return
+    local message = args.Message
+
+    -- "defeate" tooltips
+    if string.find(message, " defeated ", 1, true) then
+
+        local updateType, targetName = ParseCombatChat(Strip(message))
+
+        if updateType == 9 and targetName ~= nil then
+
+            for _, window in ipairs(windows) do
+                if window.settings.highlight_defeated then
+                    window:DefeatTooltip(targetName)
                 end
             end
+
+            return
+
         end
 
-        -- burg cc duration
-        if string.find(args.Message, "hit</rgb> with Riddle on ") then
-            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.riddle
-            if sk == nil or sk.enabled then
-                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1090541257, sk and sk.duration or 30, targetName, "Riddle")
-                    return
-                end
-            end
+    end
+
+    -- CC durations. every skill line the game writes carries this, so one cheap search decides
+    -- whether the per-window loop below is worth entering at all — ordinary combat spam never gets
+    -- past here.
+    if not string.find(message, "</rgb> with ", 1, true) then
+        return
+    end
+
+    -- parsing is the expensive part and the answer is the same for every window, so it happens at
+    -- most once per line, on the first skill that actually matches
+    local parsed = false
+    local updateType, targetName
+
+    local function Parsed()
+
+        if not parsed then
+            local kind, _, name = ParseCombatChat(Strip(message))
+            updateType, targetName = kind, name
+            parsed = true
         end
 
-        -- hunter cc duration
-        if string.find(args.Message, "hit</rgb> with Distracting Shot on ") then
-            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.distracting_shot
-            if sk == nil or sk.enabled then
-                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1091459007, sk and sk.duration or 35, targetName, "Distracting Shot")
-                    return
-                end
-            end
-        end
+        return updateType, targetName
 
-        -- mariner cc duration
-        if string.find(args.Message, "hit</rgb> with Thrum of the Sea on ") then
-            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.thrum_of_the_sea
-            if sk == nil or sk.enabled then
-                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                if updateType == 1 and targetName ~= nil then
-                    Potato:DisplayDuration(1092830905, sk and sk.duration or 25, targetName, "Thrum of the Sea")
-                    return
-                end
-            end
-        end
+    end
 
-        -- lm stun imunity
-        if string.find(args.Message, "benefit</rgb> with Sign of Power: Righteousness on ") then
-            local sk = _G.Settings.cc_skills and _G.Settings.cc_skills.sop_righteousness
-            if sk == nil or sk.enabled then
-                local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                if updateType == 17 and targetName ~= nil then
-                    Potato:DisplayDuration(1090553882, sk and sk.duration or 15, targetName, "Sign of Power: Righteousness")
-                    return
-                end
-            end
-        end
+    for _, window in ipairs(windows) do
 
-        -- custom cc skills
-        if _G.Settings.cc_custom_skills then
-            for i = 1, #_G.Settings.cc_custom_skills do
-                local sk = _G.Settings.cc_custom_skills[i]
-                if sk.enabled and sk.name ~= "" then
-                    if string.find(args.Message, "hit</rgb> with " .. sk.name .. " on ") then
-                        local updateType,initiatorName,targetName,skillName,var1,var2,var3,var4 = ParseCombatChat(string.gsub(string.gsub(args.Message,"<rgb=#......>(.*)</rgb>","%1"),"^%s*(.-)%s*$", "%1"))
-                        if updateType == 1 and targetName ~= nil then
-                            Potato:DisplayDuration(sk.icon or 1090541222, sk.duration, targetName, sk.name)
-                            return
-                        end
+        local s = window.settings
+
+        if s.display_durations then
+
+            for _, cc in ipairs(BUILTIN_CC) do
+
+                local skill = s.cc_skills and s.cc_skills[cc.key]
+
+                -- plain search rather than a pattern: a skill name is text, not an expression
+                if (skill == nil or skill.enabled)
+                    and string.find(message, cc.needle, 1, true) then
+
+                    local kind, name = Parsed()
+
+                    if kind == cc.event and name ~= nil then
+                        window:DisplayDuration(
+                            cc.icon,
+                            skill and skill.duration or cc.fallback,
+                            name,
+                            cc.label
+                        )
                     end
+
                 end
+
             end
+
+            -- custom cc skills
+            if s.cc_custom_skills then
+
+                for i = 1, #s.cc_custom_skills do
+
+                    local skill = s.cc_custom_skills[i]
+
+                    if skill.enabled and skill.name ~= ""
+                        and string.find(message, "hit</rgb> with " .. skill.name .. " on ", 1, true) then
+
+                        local kind, name = Parsed()
+
+                        if kind == 1 and name ~= nil then
+                            window:DisplayDuration(
+                                skill.icon or 1090541222,
+                                skill.duration,
+                                name,
+                                skill.name
+                            )
+                        end
+
+                    end
+
+                end
+
+            end
+
         end
+
     end
 
  end
+
 
 
 

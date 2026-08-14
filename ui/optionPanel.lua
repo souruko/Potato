@@ -34,6 +34,10 @@ local TABS = { "Layout", "Keybindings", "Combat", "CC timers", "Appearance", "Gl
 
 local GLOBAL_TAB = 6
 
+-- a row in the window selector under the tabs. five of them plus the two buttons is what fits
+-- between the last tab and the rail footer, which is where _G.MAX_WINDOWS comes from.
+local WIN_ROW_H = 22
+
 -- a CC row and the number of custom ones that fit above the footer. the pane doesn't scroll, so the
 -- add button stops offering new slots once the space is used up.
 local CC_ROW_H     = 26
@@ -56,6 +60,11 @@ function OptionPanel:Constructor()
     self.tabs = {}
     self.previews = {}
 
+    -- which window every pane is editing. the panel is built once and kept, so switching windows
+    -- moves this cursor and pushes the other window's values into the same controls rather than
+    -- building a second copy of the panel.
+    self.windowIndex = 1
+
     self:BuildRail()
 
     self:BuildLayoutPane()
@@ -65,8 +74,64 @@ function OptionPanel:Constructor()
     self:BuildAppearancePane()
     self:BuildGlobalPane()
 
-    self:SelectTab(1)
+    -- built after the panes so it draws over whichever one is open: Remove sits in the rail and can
+    -- be pressed from any tab
+    self:BuildRemoveConfirm()
 
+    self:SelectTab(1)
+    self:RefreshWindowList()
+
+end
+
+-- removing a window throws its settings away with it, and there is no undo, so it asks first
+function OptionPanel:BuildRemoveConfirm()
+
+    local W, H = 300, 96
+    local x = RAIL_W + ((PANE_W - W) / 2)
+    local y = (PANEL_H - H) / 2
+
+    local box = Turbine.UI.Control()
+    box:SetParent(self)
+    box:SetPosition(x, y)
+    box:SetSize(W, H)
+    box:SetVisible(false)
+    box:SetMouseVisible(true)
+    box:SetZOrder(2000)
+
+    _G.Widgets.Box(box, 0, 0, W, H, _G.Theme.color.card, _G.Theme.color.line)
+
+    self.removeConfirmLabel = _G.Widgets.Label(box, 14, 10, W - 28, 14, "REMOVE WINDOW",
+        _G.Theme.font.columnHead, _G.Theme.color.textQuiet)
+
+    _G.Widgets.Help(box, 14, 30, W - 28,
+        "Its settings and everything pinned to it go with it.")
+    _G.Widgets.Help(box, 14, 43, W - 28,
+        "This cannot be brought back.")
+
+    _G.Widgets.Button(box, 14, 60, "Remove", function()
+        self:RemoveWindowConfirmed()
+    end)
+
+    _G.Widgets.Button(box, 110, 60, "Cancel", function()
+        self.removeConfirm:SetVisible(false)
+    end, true)
+
+    self.removeConfirm = box
+
+end
+
+---------------------------------------------------------------------------------------------------
+-- which window is being edited
+--
+-- every pane reads and writes through these two, never through _G.Settings: the panel edits one
+-- window at a time and the rail says which.
+
+function OptionPanel:S()
+    return _G.Settings.windows[self.windowIndex] or _G.Settings.windows[1]
+end
+
+function OptionPanel:W()
+    return _G.PotatoWindows[self.windowIndex] or _G.PotatoWindows[1]
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -118,21 +183,147 @@ function OptionPanel:BuildRail()
 
     end
 
+    -- window selector, under the tabs
+    --
+    -- every tab except Global edits one window, and this says which one. it sits in the rail rather
+    -- than on the panes so it reads the same wherever you are, and so switching window keeps you on
+    -- the tab you were looking at.
+    local selTop = 40 + (#TABS * _G.Theme.metrics.tabHeight) + 10
+
+    _G.Widgets.Rect(rail, 12, selTop, RAIL_W - 24, 1, color.line)
+
+    _G.Widgets.Label(
+        rail, 12, selTop + 8, RAIL_W - 24, 14, "WINDOWS",
+        _G.Theme.font.columnHead, color.textQuiet
+    )
+
+    self.windowChips = {}
+
+    for i = 1, _G.MAX_WINDOWS do
+
+        local y = selTop + 26 + ((i - 1) * WIN_ROW_H)
+
+        local chip = {}
+        chip.fill = _G.Widgets.Rect(rail, 0, y, RAIL_W - 1, WIN_ROW_H, color.surfaceSunk)
+        chip.marker = _G.Widgets.Rect(rail, 0, y, 3, WIN_ROW_H, color.accent)
+        chip.label = _G.Widgets.Label(
+            rail, 20, y, RAIL_W - 32, WIN_ROW_H, "Window " .. i,
+            _G.Theme.font.help, color.textMuted
+        )
+
+        chip.hit = Turbine.UI.Control()
+        chip.hit:SetParent(rail)
+        chip.hit:SetPosition(0, y)
+        chip.hit:SetSize(RAIL_W - 1, WIN_ROW_H)
+        chip.hit:SetMouseVisible(true)
+
+        local index = i
+        chip.hit.MouseClick = function(sender, args)
+            self:SelectWindow(index)
+        end
+
+        self.windowChips[i] = chip
+
+    end
+
+    local buttonY = selTop + 26 + (_G.MAX_WINDOWS * WIN_ROW_H) + 4
+
+    self.addWindowButton = _G.Widgets.Button(rail, 12, buttonY, "Add", function()
+        self:AddWindowClicked()
+    end, true)
+
+    self.removeWindowButton = _G.Widgets.Button(
+        rail, 12 + self.addWindowButton.width + 6, buttonY, "Remove", function()
+            self:AskRemoveWindow()
+        end, true)
+
     -- rail footer
-    local footTop = PANEL_H - 46
+    local footTop = PANEL_H - 32
     _G.Widgets.Rect(rail, 0, footTop, RAIL_W - 1, 1, color.line)
     _G.Widgets.Label(
-        rail, 12, footTop + 8, RAIL_W - 20, 30,
+        rail, 12, footTop + 8, RAIL_W - 20, 20,
         "Saved per character",
         _G.Theme.font.help, color.textQuiet,
         Turbine.UI.ContentAlignment.TopLeft
     )
-    _G.Widgets.Label(
-        rail, 12, footTop + 22, RAIL_W - 20, 30,
-        "Share them on Global",
-        _G.Theme.font.help, color.textQuiet,
-        Turbine.UI.ContentAlignment.TopLeft
-    )
+
+end
+
+-- the chips, and which of the two buttons can be used. window 1 is the plugin and cannot be
+-- removed; the cap is what fits in the rail.
+function OptionPanel:RefreshWindowList()
+
+    local count = #_G.Settings.windows
+
+    for i, chip in ipairs(self.windowChips) do
+
+        local exists = (i <= count)
+        local active = (i == self.windowIndex)
+
+        chip.fill:SetVisible(exists)
+        chip.label:SetVisible(exists)
+        chip.hit:SetVisible(exists)
+        chip.marker:SetVisible(exists and active)
+
+        chip.fill:SetBackColor(active and _G.Theme.color.surface or _G.Theme.color.surfaceSunk)
+        chip.label:SetForeColor(active and _G.Theme.color.accentText or _G.Theme.color.textMuted)
+
+    end
+
+    self.addWindowButton:SetEnabled(count < _G.MAX_WINDOWS)
+    self.removeWindowButton:SetEnabled(self.windowIndex > 1)
+
+end
+
+-- moves the cursor and repaints every pane from the newly selected window
+function OptionPanel:SelectWindow(index)
+
+    if index == nil or index < 1 or index > #_G.Settings.windows then
+        return
+    end
+
+    self.windowIndex = index
+
+    self:RefreshWindowList()
+    self:RefreshFromSettings()
+    self:RefreshPreviews()
+
+end
+
+function OptionPanel:AddWindowClicked()
+
+    local index = _G.AddWindow(self.windowIndex)
+
+    if index == nil then
+        return
+    end
+
+    self:SelectWindow(index)
+
+end
+
+function OptionPanel:AskRemoveWindow()
+
+    if self.windowIndex <= 1 then
+        return
+    end
+
+    self.removeConfirmLabel:SetText("REMOVE WINDOW " .. self.windowIndex)
+    self.removeConfirm:SetVisible(true)
+
+end
+
+function OptionPanel:RemoveWindowConfirmed()
+
+    local index = self.windowIndex
+
+    self.removeConfirm:SetVisible(false)
+
+    if not _G.RemoveWindow(index) then
+        return
+    end
+
+    self:SelectWindow(math.min(index, #_G.Settings.windows))
 
 end
 
@@ -188,14 +379,14 @@ function OptionPanel:AddFooter(pane, onApply, onReset)
     _G.Widgets.Button(pane, PAD_X, CONTENT_H + 12, "Apply", function()
         if onApply then onApply() end
         _G.SaveSettings()
-        Potato:ApplySettings()
+        self:W():ApplySettings()
         self:RefreshPreviews()
     end)
 
     _G.Widgets.Button(pane, PAD_X + 90, CONTENT_H + 12, "Reset section", function()
         if onReset then onReset() end
         _G.SaveSettings()
-        Potato:ApplySettings()
+        self:W():ApplySettings()
         self:RefreshPreviews()
     end, true)
 
@@ -205,7 +396,7 @@ end
 function OptionPanel:Commit()
 
     _G.SaveSettings()
-    Potato:ApplySettings()
+    self:W():ApplySettings()
     self:RefreshPreviews()
 
 end
@@ -220,11 +411,15 @@ end
 -- result of a setting
 function OptionPanel:RefreshPreviews()
 
+    -- the previews are of the window being edited, so the theme has to be answering for that one
+    -- and not for whichever card happened to repaint last
+    _G.Theme.Use(self:S())
+
     for _, entry in ipairs(self.previews) do
 
         -- SetState reads the Appearance pane's colors out of Theme, so a repaint is all it takes
         entry.widget:SetState(entry.state, entry.bars)
-        entry.widget.type:SetVisible(_G.Settings.show_type_line ~= false)
+        entry.widget.type:SetVisible(self:S().show_type_line ~= false)
 
     end
 
@@ -239,18 +434,18 @@ function OptionPanel:BuildLayoutPane()
     local y = PAD_TOP + 34
 
     self.dragHandleCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Show drag handle", _G.Settings.show_drag_handle,
+        pane, PAD_X, y, "Show drag handle", self:S().show_drag_handle,
         function(value)
-            _G.Settings.show_drag_handle = value
+            self:S().show_drag_handle = value
             self:Commit()
         end
     )
     y = y + 28
 
     self.dismissCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Show close button on hover", _G.Settings.show_dismiss,
+        pane, PAD_X, y, "Show close button on hover", self:S().show_dismiss,
         function(value)
-            _G.Settings.show_dismiss = value
+            self:S().show_dismiss = value
             self:Commit()
         end
     )
@@ -264,13 +459,13 @@ function OptionPanel:BuildLayoutPane()
     _G.Widgets.Label(pane, PAD_X, y, 70, 22, "Size", _G.Theme.font.body, _G.Theme.color.textMuted)
 
     local presetIndex = 2
-    if _G.Settings.size_preset == "compact" then presetIndex = 1
-    elseif _G.Settings.size_preset == "custom" then presetIndex = 3 end
+    if self:S().size_preset == "compact" then presetIndex = 1
+    elseif self:S().size_preset == "custom" then presetIndex = 3 end
 
     self.sizeSegment = _G.Widgets.Segmented(
         pane, PAD_X + 70, y, { "Compact", "Comfortable", "Custom" }, presetIndex,
         function(index)
-            _G.Settings.size_preset = ({ "compact", "comfortable", "custom" })[index]
+            self:S().size_preset = ({ "compact", "comfortable", "custom" })[index]
             self:UpdateCustomEnabled()
             self:Commit()
         end
@@ -281,18 +476,18 @@ function OptionPanel:BuildLayoutPane()
     _G.Widgets.Label(pane, PAD_X, y, 70, 22, "Direction", _G.Theme.font.body, _G.Theme.color.textMuted)
 
     self.directionSegment = _G.Widgets.Segmented(
-        pane, PAD_X + 70, y, { "Vertical", "Horizontal" }, _G.Settings.horizontal and 2 or 1,
+        pane, PAD_X + 70, y, { "Vertical", "Horizontal" }, self:S().horizontal and 2 or 1,
         function(index)
-            _G.Settings.horizontal = (index == 2)
+            self:S().horizontal = (index == 2)
             self:Commit()
         end
     )
 
     self.reverseFillCheck = _G.Widgets.Checkbox(
         pane, PAD_X + 70 + self.directionSegment.width + 16, y + 2, "Fill in reverse",
-        _G.Settings.reverseFill,
+        self:S().reverseFill,
         function(value)
-            _G.Settings.reverseFill = value
+            self:S().reverseFill = value
             self:Commit()
         end
     )
@@ -303,9 +498,9 @@ function OptionPanel:BuildLayoutPane()
 
     self.orderSegment = _G.Widgets.Segmented(
         pane, PAD_X + 70, y, { "As pinned", "By name" },
-        (_G.Settings.sort_order == "name") and 2 or 1,
+        (self:S().sort_order == "name") and 2 or 1,
         function(index)
-            _G.Settings.sort_order = (index == 2) and "name" or "pinned"
+            self:S().sort_order = (index == 2) and "name" or "pinned"
             self:Commit()
         end
     )
@@ -325,10 +520,10 @@ function OptionPanel:BuildLayoutPane()
 
     end
 
-    self.widthStepper  = dimension("Width",  _G.Settings.width,             80,  600)
-    self.heightStepper = dimension("Height", _G.Settings.tooltip_height,    20,  200)
-    self.gapStepper    = dimension("Gap",    _G.Settings.tooltip_spacing,   0,   40)
-    self.maxStepper    = dimension("Max",    _G.Settings.max_tooltip_count, 1,   20)
+    self.widthStepper  = dimension("Width",  self:S().width,             80,  600)
+    self.heightStepper = dimension("Height", self:S().tooltip_height,    20,  200)
+    self.gapStepper    = dimension("Gap",    self:S().tooltip_spacing,   0,   40)
+    self.maxStepper    = dimension("Max",    self:S().max_tooltip_count, 1,   20)
 
     y = y + 44
 
@@ -356,22 +551,22 @@ function OptionPanel:BuildLayoutPane()
 
     self:AddFooter(pane,
         function()
-            _G.Settings.width             = self.widthStepper:GetValue()
-            _G.Settings.tooltip_height    = self.heightStepper:GetValue()
-            _G.Settings.tooltip_spacing   = self.gapStepper:GetValue()
-            _G.Settings.max_tooltip_count = self.maxStepper:GetValue()
+            self:S().width             = self.widthStepper:GetValue()
+            self:S().tooltip_height    = self.heightStepper:GetValue()
+            self:S().tooltip_spacing   = self.gapStepper:GetValue()
+            self:S().max_tooltip_count = self.maxStepper:GetValue()
         end,
         function()
-            _G.Settings.size_preset = "comfortable"
-            _G.Settings.horizontal = false
-            _G.Settings.reverseFill = false
-            _G.Settings.sort_order = "name"
-            _G.Settings.show_drag_handle = false
-            _G.Settings.show_dismiss = true
-            _G.Settings.width = 260
-            _G.Settings.tooltip_height = 52
-            _G.Settings.tooltip_spacing = 2
-            _G.Settings.max_tooltip_count = 5
+            self:S().size_preset = "comfortable"
+            self:S().horizontal = false
+            self:S().reverseFill = false
+            self:S().sort_order = "name"
+            self:S().show_drag_handle = false
+            self:S().show_dismiss = true
+            self:S().width = 260
+            self:S().tooltip_height = 52
+            self:S().tooltip_spacing = 2
+            self:S().max_tooltip_count = 5
 
             self.sizeSegment:SetSelected(2)
             self.directionSegment:SetSelected(1)
@@ -392,7 +587,7 @@ end
 -- the dimension steppers only mean anything under the Custom preset
 function OptionPanel:UpdateCustomEnabled()
 
-    local custom = (_G.Settings.size_preset == "custom")
+    local custom = (self:S().size_preset == "custom")
 
     self.widthStepper:SetEnabled(custom)
     self.heightStepper:SetEnabled(custom)
@@ -421,30 +616,41 @@ function OptionPanel:BuildKeybindingsPane()
         _G.Theme.font.body, _G.Theme.color.text)
 
     self.addKeyCap = _G.Widgets.KeyCap(
-        pane, CAP_X, y, _G.Keys.Format(_G.Settings.keybinding_add), CAP_MAX)
+        pane, CAP_X, y, _G.Keys.Format(self:S().keybinding_add), CAP_MAX)
 
     _G.Widgets.Button(pane, BTN1_X, y, "Rebind", function()
         self:BeginCapture("add")
     end)
 
+    -- a window added from the rail starts with no pin key, so that it cannot steal the key of the
+    -- window it was copied from. unbinding is the same state, reached deliberately.
+    _G.Widgets.Button(pane, BTN2_X, y, "Unbind", function()
+        self:S().use_add_keybinding = false
+        self.addKeyCap:SetText("unbound")
+        self:Commit()
+    end, true)
+
     y = y + 30
     _G.Widgets.Help(pane, PAD_X, y, BODY_W,
-        "Pins whatever you have selected. Press again on the same target to un-pin.")
-    y = y + 30
+        "Pins whatever you have selected into this window. Each window has its own keys.")
+    y = y + 13
+    _G.Widgets.Help(pane, PAD_X, y, BODY_W,
+        "Give two windows the same key and it acts on both - one key can clear them all.")
+    y = y + 20
 
     -- clear
     _G.Widgets.Label(pane, PAD_X, y, LABEL_W, 26, "Clear trackers",
         _G.Theme.font.body, _G.Theme.color.text)
 
     self.clearKeyCap = _G.Widgets.KeyCap(
-        pane, CAP_X, y, _G.Keys.Format(_G.Settings.keybinding_clear), CAP_MAX)
+        pane, CAP_X, y, _G.Keys.Format(self:S().keybinding_clear), CAP_MAX)
 
     _G.Widgets.Button(pane, BTN1_X, y, "Rebind", function()
         self:BeginCapture("clear")
     end)
 
     _G.Widgets.Button(pane, BTN2_X, y, "Unbind", function()
-        _G.Settings.use_clear_keybinding = false
+        self:S().use_clear_keybinding = false
         self.clearKeyCap:SetText("unbound")
         self:Commit()
     end, true)
@@ -452,9 +658,9 @@ function OptionPanel:BuildKeybindingsPane()
     y = y + 32
 
     self.onlyDeadCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Clear defeated only", _G.Settings.only_clear_dead,
+        pane, PAD_X, y, "Clear defeated only", self:S().only_clear_dead,
         function(value)
-            _G.Settings.only_clear_dead = value
+            self:S().only_clear_dead = value
             self:Commit()
         end
     )
@@ -489,15 +695,67 @@ function OptionPanel:BuildKeybindingsPane()
         self:HandleCapture(args)
     end
 
+    -- says when a key just bound is already doing something in another window
+    self.keyStatus = _G.Widgets.Label(pane, PAD_X, y + 116, BODY_W, 20, "",
+        _G.Theme.font.help, _G.Theme.color.textMuted)
+
     self:AddFooter(pane, nil, function()
-        _G.Settings.keybinding_add   = { shift = false, alt = false, ctrl = false, action = 268435706 }
-        _G.Settings.keybinding_clear = { shift = false, alt = false, ctrl = true,  action = 268435482 }
-        _G.Settings.use_clear_keybinding = true
-        _G.Settings.only_clear_dead = false
-        self.addKeyCap:SetText(_G.Keys.Format(_G.Settings.keybinding_add))
-        self.clearKeyCap:SetText(_G.Keys.Format(_G.Settings.keybinding_clear))
+        self:S().keybinding_add   = { shift = false, alt = false, ctrl = false, action = 268435706 }
+        self:S().keybinding_clear = { shift = false, alt = false, ctrl = true,  action = 268435482 }
+        self:S().use_add_keybinding = true
+        self:S().use_clear_keybinding = true
+        self:S().only_clear_dead = false
+        self.addKeyCap:SetText(_G.Keys.Format(self:S().keybinding_add))
+        self.clearKeyCap:SetText(_G.Keys.Format(self:S().keybinding_clear))
         self.onlyDeadCheck:SetChecked(false)
+        self.keyStatus:SetText("")
     end)
+
+end
+
+-- the other windows already using this key, and what for. sharing a key is a setup rather than a
+-- mistake — one key that clears every window at once, say — so this is said plainly rather than as
+-- a warning, but it is still worth saying: a key bound in three places acts in three places.
+function OptionPanel:KeyShared(binding)
+
+    local function same(a, b)
+        return a ~= nil and b ~= nil
+           and a.shift == b.shift and a.alt == b.alt
+           and a.ctrl == b.ctrl and a.action == b.action
+    end
+
+    local pins, clears = {}, {}
+
+    for i, w in ipairs(_G.Settings.windows) do
+
+        if i ~= self.windowIndex then
+
+            -- the same order KeyDown uses: a window given one key for both pins with it
+            if w.use_add_keybinding ~= false and same(binding, w.keybinding_add) then
+                pins[#pins + 1] = i
+            elseif w.use_clear_keybinding == true and same(binding, w.keybinding_clear) then
+                clears[#clears + 1] = i
+            end
+
+        end
+
+    end
+
+    if #pins == 0 and #clears == 0 then
+        return nil
+    end
+
+    local parts = {}
+
+    if #pins > 0 then
+        parts[#parts + 1] = "pins into window" .. (#pins > 1 and "s " or " ") .. table.concat(pins, ", ")
+    end
+
+    if #clears > 0 then
+        parts[#parts + 1] = "clears window" .. (#clears > 1 and "s " or " ") .. table.concat(clears, ", ")
+    end
+
+    return "This key also " .. table.concat(parts, " and ") .. "."
 
 end
 
@@ -531,11 +789,12 @@ function OptionPanel:HandleCapture(args)
     }
 
     if self.capturing == "add" then
-        _G.Settings.keybinding_add = binding
+        self:S().keybinding_add = binding
+        self:S().use_add_keybinding = true
         self.addKeyCap:SetText(_G.Keys.Format(binding))
     else
-        _G.Settings.keybinding_clear = binding
-        _G.Settings.use_clear_keybinding = true
+        self:S().keybinding_clear = binding
+        self:S().use_clear_keybinding = true
         self.clearKeyCap:SetText(_G.Keys.Format(binding))
     end
 
@@ -546,6 +805,15 @@ function OptionPanel:HandleCapture(args)
             "potato: no name known for key code " .. tostring(args.Action) ..
             " - add it to the overrides table in ui/keys.lua to show it as a key."
         )
+    end
+
+    local shared = self:KeyShared(binding)
+
+    if shared ~= nil then
+        self.keyStatus:SetText(shared)
+        self.keyStatus:SetForeColor(_G.Theme.color.accentLight)
+    else
+        self.keyStatus:SetText("")
     end
 
     self.capturing = nil
@@ -563,9 +831,9 @@ function OptionPanel:BuildCombatPane()
     local y = PAD_TOP + 34
 
     self.dimDefeatedCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Dim defeated targets", _G.Settings.highlight_defeated,
+        pane, PAD_X, y, "Dim defeated targets", self:S().highlight_defeated,
         function(value)
-            _G.Settings.highlight_defeated = value
+            self:S().highlight_defeated = value
             self:Commit()
         end
     )
@@ -574,7 +842,7 @@ function OptionPanel:BuildCombatPane()
     _G.Widgets.Label(pane, PAD_X, y, 130, 20, "Remove after defeat",
         _G.Theme.font.body, _G.Theme.color.text)
     self.defeatDelayStepper = _G.Widgets.Stepper(pane, PAD_X + 140, y, {
-        value = _G.Settings.defeat_auto_remove_delay, min = 0, max = 120, unit = "s",
+        value = self:S().defeat_auto_remove_delay, min = 0, max = 120, unit = "s",
     })
     y = y + 24
     _G.Widgets.Help(pane, PAD_X, y, BODY_W, "0 keeps them.")
@@ -584,9 +852,9 @@ function OptionPanel:BuildCombatPane()
     y = y + 16
 
     self.moraleCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Show morale bar", _G.Settings.display_morale,
+        pane, PAD_X, y, "Show morale bar", self:S().display_morale,
         function(value)
-            _G.Settings.display_morale = value
+            self:S().display_morale = value
             self:Commit()
         end
     )
@@ -595,23 +863,23 @@ function OptionPanel:BuildCombatPane()
     _G.Widgets.Label(pane, PAD_X, y, 130, 20, "Turn red under",
         _G.Theme.font.body, _G.Theme.color.text)
     self.moraleWarnStepper = _G.Widgets.Stepper(pane, PAD_X + 140, y, {
-        value = _G.Settings.morale_warn_pct, min = 0, max = 100, step = 5, unit = "%",
+        value = self:S().morale_warn_pct, min = 0, max = 100, step = 5, unit = "%",
     })
     y = y + 28
 
     self.moraleNumberCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Show the percentage as a number", _G.Settings.morale_show_number,
+        pane, PAD_X, y, "Show the percentage as a number", self:S().morale_show_number,
         function(value)
-            _G.Settings.morale_show_number = value
+            self:S().morale_show_number = value
             self:Commit()
         end
     )
     y = y + 28
 
     self.moraleStaleCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Grey out stale morale", _G.Settings.morale_grey_stale,
+        pane, PAD_X, y, "Grey out stale morale", self:S().morale_grey_stale,
         function(value)
-            _G.Settings.morale_grey_stale = value
+            self:S().morale_grey_stale = value
             self:Commit()
         end
     )
@@ -638,16 +906,16 @@ function OptionPanel:BuildCombatPane()
 
     self:AddFooter(pane,
         function()
-            _G.Settings.defeat_auto_remove_delay = self.defeatDelayStepper:GetValue()
-            _G.Settings.morale_warn_pct = self.moraleWarnStepper:GetValue()
+            self:S().defeat_auto_remove_delay = self.defeatDelayStepper:GetValue()
+            self:S().morale_warn_pct = self.moraleWarnStepper:GetValue()
         end,
         function()
-            _G.Settings.highlight_defeated = true
-            _G.Settings.defeat_auto_remove_delay = 0
-            _G.Settings.display_morale = false
-            _G.Settings.morale_warn_pct = 25
-            _G.Settings.morale_show_number = true
-            _G.Settings.morale_grey_stale = true
+            self:S().highlight_defeated = true
+            self:S().defeat_auto_remove_delay = 0
+            self:S().display_morale = false
+            self:S().morale_warn_pct = 25
+            self:S().morale_show_number = true
+            self:S().morale_grey_stale = true
 
             self.dimDefeatedCheck:SetChecked(true)
             self.moraleCheck:SetChecked(false)
@@ -677,9 +945,9 @@ function OptionPanel:BuildCCPane()
     local y = PAD_TOP + 34
 
     self.ccEnabledCheck = _G.Widgets.Checkbox(
-        pane, PAD_X, y, "Show timers", _G.Settings.display_durations,
+        pane, PAD_X, y, "Show timers", self:S().display_durations,
         function(value)
-            _G.Settings.display_durations = value
+            self:S().display_durations = value
             self:Commit()
         end
     )
@@ -687,7 +955,7 @@ function OptionPanel:BuildCCPane()
     _G.Widgets.Label(pane, PAD_X + 200, y, 80, 20, "Warn under",
         _G.Theme.font.body, _G.Theme.color.text)
     self.ccWarnStepper = _G.Widgets.Stepper(pane, PAD_X + 285, y - 1, {
-        value = _G.Settings.cc_warning_threshold, min = 1, max = 60, unit = "s",
+        value = self:S().cc_warning_threshold, min = 1, max = 60, unit = "s",
     })
     y = y + 30
 
@@ -707,11 +975,11 @@ function OptionPanel:BuildCCPane()
 
     for _, skill in ipairs(CC_SKILLS) do
 
-        local saved = _G.Settings.cc_skills[skill.key]
+        local saved = self:S().cc_skills[skill.key]
         local key = skill.key
 
         local check = _G.Widgets.Checkbox(pane, PAD_X, y + 3, "", saved.enabled, function(value)
-            _G.Settings.cc_skills[key].enabled = value
+            self:S().cc_skills[key].enabled = value
             self:Commit()
         end)
         check.control:SetSize(20, 18)
@@ -742,12 +1010,12 @@ function OptionPanel:BuildCCPane()
     self:AddFooter(pane,
         function()
             for _, skill in ipairs(CC_SKILLS) do
-                _G.Settings.cc_skills[skill.key].duration = self.ccSteppers[skill.key]:GetValue()
+                self:S().cc_skills[skill.key].duration = self.ccSteppers[skill.key]:GetValue()
             end
-            _G.Settings.cc_warning_threshold = self.ccWarnStepper:GetValue()
+            self:S().cc_warning_threshold = self.ccWarnStepper:GetValue()
 
             for _, row in ipairs(self.customRows) do
-                local slot = _G.Settings.cc_custom_skills[row.index]
+                local slot = self:S().cc_custom_skills[row.index]
                 slot.name     = row.nameBox:GetText() or ""
                 slot.duration = row.stepper:GetValue()
                 slot.icon     = tonumber(row.iconBox:GetText()) or slot.icon
@@ -758,15 +1026,15 @@ function OptionPanel:BuildCCPane()
             self:RebuildCustomRows()
         end,
         function()
-            _G.Settings.display_durations = true
-            _G.Settings.cc_warning_threshold = 5
+            self:S().display_durations = true
+            self:S().cc_warning_threshold = 5
             self.ccEnabledCheck:SetChecked(true)
             self.ccWarnStepper:SetValue(5)
 
             local defaults = { 30, 30, 35, 25, 15 }
             for i, skill in ipairs(CC_SKILLS) do
-                _G.Settings.cc_skills[skill.key].enabled = true
-                _G.Settings.cc_skills[skill.key].duration = defaults[i]
+                self:S().cc_skills[skill.key].enabled = true
+                self:S().cc_skills[skill.key].duration = defaults[i]
                 self.ccChecks[skill.key]:SetChecked(true)
                 self.ccSteppers[skill.key]:SetValue(defaults[i])
             end
@@ -787,7 +1055,7 @@ function OptionPanel:RebuildCustomRows()
 
     local y = self.customRowTop
 
-    for i, slot in ipairs(_G.Settings.cc_custom_skills) do
+    for i, slot in ipairs(self:S().cc_custom_skills) do
 
         if slot.name ~= nil and slot.name ~= "" and #self.customRows < CC_MAX_CUSTOM then
 
@@ -854,7 +1122,7 @@ end
 
 function OptionPanel:RemoveCustomSkill(index)
 
-    local slot = _G.Settings.cc_custom_skills[index]
+    local slot = self:S().cc_custom_skills[index]
 
     if slot ~= nil then
         slot.name = ""
@@ -872,8 +1140,8 @@ function OptionPanel:AddCustomSkill()
 
     -- claim the first free slot, growing the list if they're all taken
     local slot
-    for i = 1, #_G.Settings.cc_custom_skills do
-        local candidate = _G.Settings.cc_custom_skills[i]
+    for i = 1, #self:S().cc_custom_skills do
+        local candidate = self:S().cc_custom_skills[i]
         if candidate.name == nil or candidate.name == "" then
             slot = candidate
             break
@@ -882,7 +1150,7 @@ function OptionPanel:AddCustomSkill()
 
     if slot == nil then
         slot = { duration = 30, enabled = false, icon = 1090541222 }
-        _G.Settings.cc_custom_skills[#_G.Settings.cc_custom_skills + 1] = slot
+        self:S().cc_custom_skills[#self:S().cc_custom_skills + 1] = slot
     end
 
     slot.name = "New skill"
@@ -925,7 +1193,7 @@ function OptionPanel:BuildAppearancePane()
             local index = i
 
             local swatch = _G.Widgets.Swatch(pane, x, y, color, false, function()
-                _G.Settings[set.key] = { r = color.R, g = color.G, b = color.B }
+                self:S()[set.key] = { r = color.R, g = color.G, b = color.B }
                 for j, other in ipairs(row.swatches) do
                     other:SetSelected(j == index)
                 end
@@ -961,18 +1229,18 @@ function OptionPanel:BuildAppearancePane()
 
     self.nameTextSegment = _G.Widgets.Segmented(
         pane, PAD_X + 85, y, { "Outlined", "Plain" },
-        (_G.Settings.name_outline == false) and 2 or 1,
+        (self:S().name_outline == false) and 2 or 1,
         function(index)
-            _G.Settings.name_outline = (index == 1)
+            self:S().name_outline = (index == 1)
             self:Commit()
         end
     )
 
     self.typeLineCheck = _G.Widgets.Checkbox(
         pane, PAD_X + 85 + self.nameTextSegment.width + 16, y + 2, "Show type line",
-        _G.Settings.show_type_line,
+        self:S().show_type_line,
         function(value)
-            _G.Settings.show_type_line = value
+            self:S().show_type_line = value
             self:Commit()
         end
     )
@@ -1002,13 +1270,13 @@ function OptionPanel:BuildAppearancePane()
     self:SyncSwatchSelection()
 
     self:AddFooter(pane, nil, function()
-        _G.Settings.color_player   = { r = _G.Theme.color.green.R,       g = _G.Theme.color.green.G,       b = _G.Theme.color.green.B }
-        _G.Settings.color_npc      = { r = _G.Theme.color.greyRail.R,    g = _G.Theme.color.greyRail.G,    b = _G.Theme.color.greyRail.B }
-        _G.Settings.color_item     = { r = _G.Theme.color.greyRailDim.R, g = _G.Theme.color.greyRailDim.G, b = _G.Theme.color.greyRailDim.B }
-        _G.Settings.color_targeted = { r = _G.Theme.color.accent.R,      g = _G.Theme.color.accent.G,      b = _G.Theme.color.accent.B }
-        _G.Settings.color_card     = { r = _G.Theme.color.card.R,        g = _G.Theme.color.card.G,        b = _G.Theme.color.card.B }
-        _G.Settings.name_outline = true
-        _G.Settings.show_type_line = true
+        self:S().color_player   = { r = _G.Theme.color.green.R,       g = _G.Theme.color.green.G,       b = _G.Theme.color.green.B }
+        self:S().color_npc      = { r = _G.Theme.color.greyRail.R,    g = _G.Theme.color.greyRail.G,    b = _G.Theme.color.greyRail.B }
+        self:S().color_item     = { r = _G.Theme.color.greyRailDim.R, g = _G.Theme.color.greyRailDim.G, b = _G.Theme.color.greyRailDim.B }
+        self:S().color_targeted = { r = _G.Theme.color.accent.R,      g = _G.Theme.color.accent.G,      b = _G.Theme.color.accent.B }
+        self:S().color_card     = { r = _G.Theme.color.card.R,        g = _G.Theme.color.card.G,        b = _G.Theme.color.card.B }
+        self:S().name_outline = true
+        self:S().show_type_line = true
 
         self.nameTextSegment:SetSelected(1)
         self.typeLineCheck:SetChecked(true)
@@ -1085,7 +1353,7 @@ function OptionPanel:OpenExactColor(set)
 
     self.exactSet = set
 
-    local saved = _G.Settings[set.key] or { r = 0, g = 0, b = 0 }
+    local saved = self:S()[set.key] or { r = 0, g = 0, b = 0 }
 
     self.exactTitle:SetText("EXACT COLOUR" .. _G.Theme.sep .. string.upper(set.label))
     self.exactR:SetValue(math.floor(saved.r * 255 + 0.5))
@@ -1101,7 +1369,7 @@ function OptionPanel:CommitExactColor()
 
     if self.exactSet == nil then return end
 
-    _G.Settings[self.exactSet.key] = {
+    self:S()[self.exactSet.key] = {
         r = self.exactR:GetValue() / 255,
         g = self.exactG:GetValue() / 255,
         b = self.exactB:GetValue() / 255,
@@ -1247,8 +1515,13 @@ function OptionPanel:LoadGlobal()
         return
     end
 
+    -- the global copy can hold a different number of windows than this character had, so the whole
+    -- set is thrown away and built again rather than reapplied
+    _G.RebuildWindows()
+
+    self.windowIndex = 1
+    self:RefreshWindowList()
     self:RefreshFromSettings()
-    Potato:ApplySettings()
     self:RefreshPreviews()
 
     self:RefreshGlobalStatus("Loaded. This character now matches the global copy.")
@@ -1263,7 +1536,7 @@ end
 
 function OptionPanel:RefreshFromSettings()
 
-    local s = _G.Settings
+    local s = self:S()
 
     -- Layout
     self.dragHandleCheck:SetChecked(s.show_drag_handle)
@@ -1285,7 +1558,12 @@ function OptionPanel:RefreshFromSettings()
     self:UpdateCustomEnabled()
 
     -- Keybindings
-    self.addKeyCap:SetText(_G.Keys.Format(s.keybinding_add))
+    if s.use_add_keybinding == false then
+        self.addKeyCap:SetText("unbound")
+    else
+        self.addKeyCap:SetText(_G.Keys.Format(s.keybinding_add))
+    end
+    self.keyStatus:SetText("")
     if s.use_clear_keybinding == false then
         self.clearKeyCap:SetText("unbound")
     else
@@ -1327,7 +1605,7 @@ function OptionPanel:SyncSwatchSelection()
 
     for _, row in ipairs(self.swatchRows) do
 
-        local saved = _G.Settings[row.key]
+        local saved = self:S()[row.key]
 
         for i, swatch in ipairs(row.swatches) do
             local c = swatch.swatch:GetBackColor()

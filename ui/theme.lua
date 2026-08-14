@@ -9,12 +9,45 @@
 --
 -- everything the ui files draw reads its colors and sizes from here, so a token
 -- changes in one place instead of three
+--
+-- some of what it answers is a user setting — the card size, the card background, the rail colors —
+-- and every window has its own copy of those. rather than pass a settings table through the fifty
+-- odd call sites (Theme.Ink alone is called a dozen times from potatoTooltip), the theme is told
+-- which window it is answering for and remembers it:
+--
+--     _G.Theme.Use(self.settings)
+--
+-- the rule that keeps this honest: every method of PotatoWindow and PotatoTooltip that can be
+-- entered from outside the class calls Theme.Use first. anything they call in turn inherits it.
 ---------------------------------------------------------------------------------------------------
 
 import "Turbine.UI"
 import "Turbine.UI.Lotro"
 
 _G.Theme = {}
+
+-- the window whose settings the theme is currently answering for
+local active = nil
+
+function _G.Theme.Use(settings)
+    active = settings
+end
+
+-- the first window is the fallback: the options panel's preview cards and anything else that asks
+-- before a window has claimed the theme should look like the plugin's main HUD, not like nothing.
+local function S()
+
+    if active ~= nil then
+        return active
+    end
+
+    if _G.Settings ~= nil and _G.Settings.windows ~= nil and _G.Settings.windows[1] ~= nil then
+        return _G.Settings.windows[1]
+    end
+
+    return {}
+
+end
 
 local Color = Turbine.UI.Color
 
@@ -339,7 +372,8 @@ end
 -- both the card and the window that stacks them size themselves from this.
 function _G.Theme.CardMetrics()
 
-    local base = _G.Theme.preset[ _G.Settings.size_preset ]
+    local s = S()
+    local base = _G.Theme.preset[ s.size_preset ]
     local m = {}
 
     if base == nil then
@@ -347,9 +381,9 @@ function _G.Theme.CardMetrics()
         -- custom
         for key, value in pairs(_G.Theme.preset.comfortable) do m[key] = value end
 
-        m.width  = _G.Settings.width
-        m.height = _G.Settings.tooltip_height
-        m.gap    = _G.Settings.tooltip_spacing
+        m.width  = s.width
+        m.height = s.tooltip_height
+        m.gap    = s.tooltip_spacing
 
         -- a short card has no room for a type line under the name
         if m.height < 44 then
@@ -377,7 +411,7 @@ function _G.Theme.CardMetrics()
     end
 
     -- the type line can also be switched off outright
-    if _G.Settings.show_type_line == false then
+    if s.show_type_line == false then
         m.typeLine = false
     end
 
@@ -435,14 +469,14 @@ end
 -- the card's fill at rest, as the user has set it
 function _G.Theme.BaseColor()
 
-    return SettingColor(_G.Settings and _G.Settings.color_card, _G.Theme.color.card)
+    return SettingColor(S().color_card, _G.Theme.color.card)
 
 end
 
 -- the frame and rail color of a targeted card
 function _G.Theme.TargetColor()
 
-    return SettingColor(_G.Settings and _G.Settings.color_targeted, _G.Theme.color.accent)
+    return SettingColor(S().color_targeted, _G.Theme.color.accent)
 
 end
 
@@ -584,15 +618,15 @@ end
 -- 1 = player / fellowship, 2 = object / item, anything else = NPC
 function _G.Theme.RailColor(entityType)
 
-    local s = _G.Settings
+    local s = S()
 
     if entityType == 1 then
-        return SettingColor(s and s.color_player, _G.Theme.color.green)
+        return SettingColor(s.color_player, _G.Theme.color.green)
     elseif entityType == 2 then
-        return SettingColor(s and s.color_item, _G.Theme.color.greyRailDim)
+        return SettingColor(s.color_item, _G.Theme.color.greyRailDim)
     end
 
-    return SettingColor(s and s.color_npc, _G.Theme.color.greyRail)
+    return SettingColor(s.color_npc, _G.Theme.color.greyRail)
 
 end
 

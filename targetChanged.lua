@@ -6,10 +6,10 @@ function lp.TargetChanged(sender, args)
     local localPlayer = Turbine.Gameplay.LocalPlayer:GetInstance()
     local target = localPlayer:GetTarget()
 
-    if target then
-        Potato:TargetChanged(target:GetName())
-    else
-        Potato:TargetChanged(nil)
+    local targetName = target and target:GetName() or nil
+
+    for _, window in ipairs(_G.PotatoWindows) do
+        window:TargetChanged(targetName)
     end
 
 end

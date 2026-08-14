@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.1.0] — 2026-08-14
+
+You can now have more than one tracker window, and each one is set up entirely separately.
+
+### Added
+- Extra tracker windows, up to five. Add and remove them from the **Windows** list in the settings panel, under the tabs. The first window cannot be removed.
+- Every window keeps its own settings: where it sits, how big it is, which direction it fills, its colours, its morale and defeat options, and its own CC timers. Changing one leaves the others alone.
+- Every window has its own keys for pinning a target and for clearing defeated trackers, so which key you press decides which window the target goes into.
+- Windows can share a key, and then it acts on all of them at once. Give every window the same clear key and one press clears the lot; give two windows the same pin key and a target goes into both.
+- A new window starts as a copy of the one you were looking at, nudged clear of it with its drag handle showing, and with no keys of its own until you set them, so it does not start duplicating the pins of the window you copied.
+- The pin key can now be unbound, the same as the clear key always could.
+- When you set a key another window already uses, the settings panel says which windows it acts on.
+
+### Changed
+- Your existing settings become Window 1 the first time you load this version. Nothing needs setting up again.
+- The shared copy on the **Global** tab now carries all of your windows. Saving it keeps the whole set; loading it gives that character the same windows in the same places.
+
+### Fixed
+- A custom CC skill whose name contains a hyphen, a plus or a bracket is now matched properly. Before, punctuation in the name could stop the timer appearing.
+
 ## [2.0.3] — 2026-08-13
 
 ### Added

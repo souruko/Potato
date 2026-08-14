@@ -38,6 +38,13 @@ function PotatoTooltip:Constructor(name, entity, entityType, parentWindow)
     self.entityType = entityType
     self.parentWindow = parentWindow
 
+    -- the card belongs to one window and reads that window's settings, never _G.Settings. the same
+    -- table the window holds, so a change made in the options panel is seen here without being
+    -- pushed across.
+    self.settings = parentWindow.settings
+
+    _G.Theme.Use(self.settings)
+
     self.isDead = false
     self.isTarget = true
     self.isHover = false
@@ -176,9 +183,11 @@ end
 -- hover only shows through on a card that isn't already carrying a louder state
 function PotatoTooltip:SetHover(value)
 
+    _G.Theme.Use(self.settings)
+
     -- with the dismiss button switched off the card is cleared by the keybinding instead, so the
     -- hover fill still changes but nothing is drawn over the name
-    self.dismissCol:SetVisible(value and _G.Settings.show_dismiss ~= false)
+    self.dismissCol:SetVisible(value and self.settings.show_dismiss ~= false)
 
     if self.isHover ~= value then
         self.isHover = value
@@ -195,6 +204,8 @@ end
 -- and breaking keeps the target frame and still says BREAKING on its type line and in its bar,
 -- so neither signal is lost.
 function PotatoTooltip:ApplyState()
+
+    _G.Theme.Use(self.settings)
 
     local color = _G.Theme.color
 
@@ -273,6 +284,8 @@ end
 -- a defeated card has left, or just what the thing is
 function PotatoTooltip:RefreshTypeLine()
 
+    _G.Theme.Use(self.settings)
+
     local m = self.metrics
 
     if m.typeLine == false then
@@ -298,7 +311,7 @@ function PotatoTooltip:RefreshTypeLine()
         text      = "DEFEATED"
         textColor = color.textFaint
 
-        local delay = _G.Settings.defeat_auto_remove_delay
+        local delay = self.settings.defeat_auto_remove_delay
         if delay > 0 and self.defeatTime ~= nil then
             local left = math.ceil(delay - (Turbine.Engine.GetGameTime() - self.defeatTime))
             if left > 0 then
@@ -322,7 +335,7 @@ function PotatoTooltip:RefreshTypeLine()
         suffix      = _G.Theme.sep .. "YOUR TARGET"
         suffixColor = color.accentLight
 
-    elseif self.endTime ~= nil and self.moraleVisible and _G.Settings.morale_show_number ~= false then
+    elseif self.endTime ~= nil and self.moraleVisible and self.settings.morale_show_number ~= false then
 
         suffix      = _G.Theme.sep .. math.floor(self.moraleFraction * 100) .. "%"
         suffixColor = self:MoraleTextColor()
@@ -345,7 +358,7 @@ function PotatoTooltip:MoraleTextColor()
         return _G.Theme.Ink(_G.Theme.color.textFaint)
     end
 
-    if self.moraleFraction * 100 <= (_G.Settings.morale_warn_pct or 25) then
+    if self.moraleFraction * 100 <= (self.settings.morale_warn_pct or 25) then
         return _G.Theme.Ink(_G.Theme.color.redLight)
     end
 
@@ -359,7 +372,7 @@ function PotatoTooltip:MoraleFillColor()
         return _G.Theme.color.line
     end
 
-    if self.moraleFraction * 100 <= (_G.Settings.morale_warn_pct or 25) then
+    if self.moraleFraction * 100 <= (self.settings.morale_warn_pct or 25) then
         return _G.Theme.color.red
     end
 
@@ -393,6 +406,8 @@ end
 -- runtime — the border thickens on a targeted card.
 function PotatoTooltip:LayoutDismiss()
 
+    _G.Theme.Use(self.settings)
+
     local m = self.metrics
     local borderW = self.borderWidth or _G.Theme.metrics.borderWidth
 
@@ -409,6 +424,8 @@ end
 -- owns the bottom edge on its own; when both are, CC is always the outer one, because it's the bar
 -- that turns red.
 function PotatoTooltip:LayoutBars()
+
+    _G.Theme.Use(self.settings)
 
     local m = self.metrics
     local color = _G.Theme.color
@@ -455,7 +472,7 @@ function PotatoTooltip:LayoutBars()
     -- the percentage only gets the right edge when the seconds aren't using it, and a compact
     -- card drops it entirely once a timer is running
     local showPct = moraleOn
-        and _G.Settings.morale_show_number ~= false
+        and self.settings.morale_show_number ~= false
         and not ccOn
 
     self.moralePct:SetVisible(showPct)
@@ -497,13 +514,17 @@ end
 
 function PotatoTooltip:ClearDeadTooltips()
 
-    if _G.Settings.only_clear_dead == false or self.isDead then
+    _G.Theme.Use(self.settings)
+
+    if self.settings.only_clear_dead == false or self.isDead then
         self.parentWindow:RemoveTooltip(self)
     end
 
 end
 
 function PotatoTooltip:TargetChanged(targetName)
+
+    _G.Theme.Use(self.settings)
 
     if targetName == self.name and self.isTarget == false then
         self.isTarget = true
@@ -517,6 +538,8 @@ end
 
 function PotatoTooltip:DisplayDuration(icon, duration, targetName, skillName)
 
+    _G.Theme.Use(self.settings)
+
     if targetName ~= self.name then
         return
     end
@@ -527,7 +550,7 @@ function PotatoTooltip:DisplayDuration(icon, duration, targetName, skillName)
     self.ccSkillName = skillName or "CC"
     self.ccIcon      = icon
     self.ccFraction  = 1
-    self.ccBreaking  = duration <= _G.Settings.cc_warning_threshold
+    self.ccBreaking  = duration <= self.settings.cc_warning_threshold
 
     self.ccSeconds:SetText(tostring(math.ceil(duration)))
     self.ccSeconds:SetForeColor(self:CCTextColor(self.ccBreaking))
@@ -539,11 +562,13 @@ end
 
 function PotatoTooltip:DefeatTooltip(targetName)
 
+    _G.Theme.Use(self.settings)
+
     if targetName == self.name and self.isDead == false then
 
         self.isDead = true
 
-        if _G.Settings.defeat_auto_remove_delay > 0 then
+        if self.settings.defeat_auto_remove_delay > 0 then
             self.defeatTime = Turbine.Engine.GetGameTime()
             self:SetWantsUpdates(true)
         end
@@ -556,7 +581,9 @@ end
 
 function PotatoTooltip:UpdateMorale()
 
-    if not (_G.Settings.display_morale and self.entity) then return end
+    _G.Theme.Use(self.settings)
+
+    if not (self.settings.display_morale and self.entity) then return end
 
     local ok,  morale    = pcall(function() return self.entity:GetMorale() end)
     local ok2, maxMorale = pcall(function() return self.entity:GetMaxMorale() end)
@@ -587,13 +614,15 @@ end
 
 function PotatoTooltip:Update()
 
+    _G.Theme.Use(self.settings)
+
     local now = Turbine.Engine.GetGameTime()
     local keepUpdating = false
 
     -- defeated cards count down to their own removal on the type line
     if self.isDead and self.defeatTime then
 
-        local delay = _G.Settings.defeat_auto_remove_delay
+        local delay = self.settings.defeat_auto_remove_delay
         if delay > 0 and (now - self.defeatTime) >= delay then
             self.parentWindow:RemoveTooltip(self)
             return
@@ -626,7 +655,7 @@ function PotatoTooltip:Update()
             self.ccSeconds:SetText(tostring(math.ceil(timeLeft)))
 
             -- the warning colors are set on the crossing, not on every frame
-            local breaking = timeLeft <= _G.Settings.cc_warning_threshold
+            local breaking = timeLeft <= self.settings.cc_warning_threshold
             if breaking ~= self.ccBreaking then
                 self.ccBreaking = breaking
                 self.ccSeconds:SetForeColor(self:CCTextColor(breaking))
@@ -639,7 +668,7 @@ function PotatoTooltip:Update()
 
     -- morale only updates while the game sends events for the entity. after five seconds of
     -- silence the bar greys out rather than showing a stale figure as if it were live.
-    if self.moraleVisible and self.lastMoraleUpdateTime and _G.Settings.morale_grey_stale ~= false then
+    if self.moraleVisible and self.lastMoraleUpdateTime and self.settings.morale_grey_stale ~= false then
 
         if (now - self.lastMoraleUpdateTime) < 5 then
             keepUpdating = true
@@ -662,6 +691,8 @@ end
 
 function PotatoTooltip:ApplySettings()
 
+    _G.Theme.Use(self.settings)
+
     local m = _G.Theme.CardMetrics()
     self.metrics = m
 
@@ -676,7 +707,7 @@ function PotatoTooltip:ApplySettings()
     self.nameLabel:SetPosition(m.nameLeft, m.nameTop)
     self.nameLabel:SetSize(textWidth, m.nameHeight)
     self.nameLabel:SetFontStyle(
-        _G.Settings.name_outline == false
+        self.settings.name_outline == false
             and Turbine.UI.FontStyle.None
             or  Turbine.UI.FontStyle.Outline
     )
@@ -717,12 +748,12 @@ function PotatoTooltip:ApplySettings()
     -- the dismiss button is positioned in ApplyState, since its inset tracks the border width.
     -- switching it off while a card is hovered has to take effect now rather than on the next
     -- mouse leave.
-    if _G.Settings.show_dismiss == false then
+    if self.settings.show_dismiss == false then
         self.dismissCol:SetVisible(false)
     end
 
     -- morale events
-    if _G.Settings.display_morale and self.entity then
+    if self.settings.display_morale and self.entity then
 
         local handler = function(sender, args) self:UpdateMorale() end
         self.moraleHandler = handler
@@ -735,20 +766,46 @@ function PotatoTooltip:ApplySettings()
 
     else
 
-        if self.entity and self.moraleHandler then
-            local h = self.moraleHandler
-            if self.entity.MoraleChanged             == h then self.entity.MoraleChanged             = nil end
-            if self.entity.BaseMaxMoraleChanged      == h then self.entity.BaseMaxMoraleChanged      = nil end
-            if self.entity.MaxMoraleChanged          == h then self.entity.MaxMoraleChanged          = nil end
-            if self.entity.MaxTemporaryMoraleChanged == h then self.entity.MaxTemporaryMoraleChanged = nil end
-            if self.entity.TemporaryMoraleChanged    == h then self.entity.TemporaryMoraleChanged    = nil end
-            self.moraleHandler = nil
-        end
-
+        self:UnbindMorale()
         self.moraleVisible = false
 
     end
 
     self:ApplyState()
+
+end
+
+-- takes this card's handler back off the entity, and only this card's: several cards can be
+-- watching the same entity, so an assignment that is no longer ours is left alone.
+function PotatoTooltip:UnbindMorale()
+
+    if self.entity == nil or self.moraleHandler == nil then
+        return
+    end
+
+    local h = self.moraleHandler
+
+    if self.entity.MoraleChanged             == h then self.entity.MoraleChanged             = nil end
+    if self.entity.BaseMaxMoraleChanged      == h then self.entity.BaseMaxMoraleChanged      = nil end
+    if self.entity.MaxMoraleChanged          == h then self.entity.MaxMoraleChanged          = nil end
+    if self.entity.MaxTemporaryMoraleChanged == h then self.entity.MaxTemporaryMoraleChanged = nil end
+    if self.entity.TemporaryMoraleChanged    == h then self.entity.TemporaryMoraleChanged    = nil end
+
+    self.moraleHandler = nil
+
+end
+
+-- the card is going away with its window. removing it from the listbox is not enough on its own:
+-- a card left wanting updates, or still assigned to the entity's morale events, goes on running for
+-- the rest of the session with nothing on screen to show for it.
+function PotatoTooltip:Destroy()
+
+    self:SetWantsUpdates(false)
+    self:UnbindMorale()
+
+    self.moraleVisible = false
+
+    self:SetVisible(false)
+    self:SetParent(nil)
 
 end
